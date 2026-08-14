@@ -50,6 +50,19 @@ public class AdminProductController extends GenericAdminService {
         return ResponseEntity.ok(ApiResponse.ok(repo.save(e)));
     }
 
+    @PatchMapping("/{id}/active")
+    public ResponseEntity<ApiResponse<Product>> setActive(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> body) {
+        Product e = findOrThrow(repo, id, "Product");
+        if (body.containsKey("isActive")) {
+            e.setActive(Boolean.parseBoolean(body.get("isActive").toString()));
+        } else {
+            e.setActive(!e.isActive());
+        }
+        return ResponseEntity.ok(ApiResponse.ok(repo.save(e)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         Product e = findOrThrow(repo, id, "Product");

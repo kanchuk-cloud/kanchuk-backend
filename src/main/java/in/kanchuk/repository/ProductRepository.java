@@ -21,4 +21,5 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Optional<Product> findBySkuAndDeletedAtIsNull(String sku);
 
     Page<Product> findByCategorySlugAndDeletedAtIsNullAndIsActiveTrue(String categorySlug, Pageable pageable);
+    Page<Product> findByDeletedAtIsNullAndIsActiveTrue(Pageable pageable);
 }

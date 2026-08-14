@@ -31,7 +31,7 @@ public class PublicProductController extends GenericAdminService {
         } else if (!search.isBlank()) {
             pg = repo.searchProducts(search, pageRequest(page, limit));
         } else {
-            pg = repo.findByDeletedAtIsNull(pageRequest(page, limit));
+            pg = repo.findByDeletedAtIsNullAndIsActiveTrue(pageRequest(page, limit));
         }
         return ResponseEntity.ok(ApiResponse.ok(pg.getContent(), buildMeta(pg, page, limit)));
     }
