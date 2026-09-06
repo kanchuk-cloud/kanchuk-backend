@@ -1,5 +1,6 @@
 package in.kanchuk.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,6 +11,7 @@ import lombok.Setter;
 @Table(name = "product_option_values")
 public class ProductOptionValue extends BaseEntity {
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "option_type_id", nullable = false)
     private ProductOptionType optionType;

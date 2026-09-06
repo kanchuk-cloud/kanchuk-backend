@@ -10,7 +10,6 @@ public class JacksonConfig {
     @Bean
     public Hibernate6Module hibernate6Module() {
         Hibernate6Module module = new Hibernate6Module();
-        // Serialize lazy associations as null rather than throwing; forces initialization for eager ones
         module.disable(Hibernate6Module.Feature.USE_TRANSIENT_ANNOTATION);
         return module;
     }

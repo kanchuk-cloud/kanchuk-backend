@@ -3,11 +3,15 @@ package in.kanchuk.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -18,8 +22,17 @@ public class Product extends SoftDeleteEntity {
     @Column(nullable = false, length = 100)
     private String sku;
 
+    @Column(name = "supplier_sku", length = 100)
+    private String supplierSku;
+
+    @Column(length = 255)
+    private String slug;
+
     @Column(nullable = false, length = 255)
     private String name;
+
+    @Column(length = 150)
+    private String brand;
 
     @Column(name = "short_description", columnDefinition = "TEXT")
     private String shortDescription;
@@ -77,6 +90,26 @@ public class Product extends SoftDeleteEntity {
     @Column(name = "return_policy", columnDefinition = "TEXT")
     private String returnPolicy;
 
+    @Column(name = "swatch_available", nullable = false)
+    private boolean swatchAvailable = false;
+
+    @Column(name = "swatch_price", nullable = false)
+    private BigDecimal swatchPrice = BigDecimal.ZERO;
+
+    @Column(name = "rating", nullable = false)
+    private BigDecimal rating = BigDecimal.ZERO;
+
+    @Column(name = "review_count", nullable = false)
+    private int reviewCount = 0;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "color_families", columnDefinition = "jsonb")
+    private List<String> colorFamilies;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "attributes", columnDefinition = "jsonb")
+    private Map<String, String> attributes;
+
     @Column(name = "is_handloom", nullable = false)
     private boolean isHandloom = false;
 
@@ -112,4 +145,27 @@ public class Product extends SoftDeleteEntity {
 
     @Column(name = "og_image_url")
     private String ogImageUrl;
+
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<ProductImage> images = new ArrayList<>();
+
+    @Formula("(SELECT MIN(pl.price) FROM product_variants pv " +
+             "JOIN product_listings pl ON pl.variant_id = pv.id " +
+             "WHERE pv.product_id = id " +
+             "AND pv.deleted_at IS NULL " +
+             "AND pl.deleted_at IS NULL " +
+             "AND pl.is_active = true " +
+             "AND pl.price > 0)")
+    private BigDecimal minPrice;
+
+    @Formula("(SELECT pl.compare_at_price FROM product_variants pv " +
+             "JOIN product_listings pl ON pl.variant_id = pv.id " +
+             "WHERE pv.product_id = id " +
+             "AND pv.deleted_at IS NULL " +
+             "AND pl.deleted_at IS NULL " +
+             "AND pl.is_active = true " +
+             "AND pl.price > 0 " +
+             "ORDER BY pl.price ASC LIMIT 1)")
+    private BigDecimal compareAtPrice;
 }

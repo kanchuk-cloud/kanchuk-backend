@@ -1,5 +1,6 @@
 package in.kanchuk.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,6 +16,11 @@ public class SubCategory extends SoftDeleteEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
+
+    @JsonProperty("categoryId")
+    public String getCategoryId() {
+        return category != null ? category.getId().toString() : null;
+    }
 
     @Column(nullable = false, length = 100)
     private String name;

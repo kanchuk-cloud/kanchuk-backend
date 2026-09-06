@@ -51,4 +51,21 @@ public class Order extends BaseEntity {
 
     @Column(name = "placed_at")
     private OffsetDateTime placedAt;
+
+    // Delivery snapshot — stored at order-creation time so historical orders
+    // are unaffected when zone pricing changes later.
+    @Column(name = "delivery_pincode", length = 6)
+    private String deliveryPincode;
+
+    @Column(name = "delivery_zone_code", length = 50)
+    private String deliveryZoneCode;
+
+    @Column(name = "delivery_method", length = 20)
+    private String deliveryMethod;
+
+    @Column(name = "estimated_delivery_days")
+    private Integer estimatedDeliveryDays;
+
+    @Column(name = "estimated_delivery_minutes")
+    private Integer estimatedDeliveryMinutes;
 }

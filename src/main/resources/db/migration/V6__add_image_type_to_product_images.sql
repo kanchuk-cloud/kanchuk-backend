@@ -1,0 +1,1 @@
+ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_type VARCHAR(50);

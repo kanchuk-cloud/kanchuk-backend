@@ -36,15 +36,24 @@ public abstract class GenericAdminService {
         Class<?> cls = entity.getClass();
         fields.forEach((field, value) -> {
             try {
-                String setter = "set" + Character.toUpperCase(field.charAt(0)) + field.substring(1);
-                for (Method m : cls.getMethods()) {
-                    if (m.getName().equals(setter) && m.getParameterCount() == 1) {
-                        m.invoke(entity, coerce(value, m.getParameterTypes()[0]));
-                        break;
+                if (!tryInvokeSetter(entity, cls, "set" + Character.toUpperCase(field.charAt(0)) + field.substring(1), value)) {
+                    // Lombok strips the 'is' prefix from boolean field setters (isActive → setActive)
+                    if (field.startsWith("is") && field.length() > 2 && Character.isUpperCase(field.charAt(2))) {
+                        tryInvokeSetter(entity, cls, "set" + field.substring(2), value);
                     }
                 }
             } catch (Exception ignored) {}
         });
+    }
+
+    private <T> boolean tryInvokeSetter(T entity, Class<?> cls, String setterName, Object value) {
+        for (Method m : cls.getMethods()) {
+            if (m.getName().equals(setterName) && m.getParameterCount() == 1) {
+                try { m.invoke(entity, coerce(value, m.getParameterTypes()[0])); } catch (Exception ignored) {}
+                return true;
+            }
+        }
+        return false;
     }
 
     @SuppressWarnings("unchecked")

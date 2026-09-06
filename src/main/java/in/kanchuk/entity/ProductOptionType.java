@@ -1,8 +1,11 @@
 package in.kanchuk.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter
@@ -10,6 +13,7 @@ import lombok.Setter;
 @Table(name = "product_option_types")
 public class ProductOptionType extends BaseEntity {
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
@@ -22,4 +26,8 @@ public class ProductOptionType extends BaseEntity {
 
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
+
+    @OneToMany(mappedBy = "optionType", fetch = FetchType.EAGER)
+    @OrderBy("sortOrder ASC")
+    private List<ProductOptionValue> values;
 }

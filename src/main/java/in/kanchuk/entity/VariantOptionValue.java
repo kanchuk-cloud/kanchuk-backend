@@ -28,6 +28,7 @@ public class VariantOptionValue {
     @Embeddable
     @Getter
     @Setter
+    @lombok.EqualsAndHashCode
     public static class VariantOptionValueId implements java.io.Serializable {
         @Column(name = "variant_id")
         private UUID variantId;
