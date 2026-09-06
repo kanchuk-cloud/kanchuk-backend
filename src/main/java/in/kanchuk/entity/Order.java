@@ -1,11 +1,16 @@
 package in.kanchuk.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -43,6 +48,7 @@ public class Order extends BaseEntity {
     @JoinColumn(name = "shipping_method_id")
     private ShippingMethod shippingMethod;
 
+    @JsonIgnore
     @Column(name = "delivery_address_snapshot", columnDefinition = "TEXT")
     private String deliveryAddressSnapshot;
 
@@ -68,4 +74,20 @@ public class Order extends BaseEntity {
 
     @Column(name = "estimated_delivery_minutes")
     private Integer estimatedDeliveryMinutes;
+
+    @Column(name = "payment_method", length = 50)
+    private String paymentMethod;
+
+    @Column(name = "payment_status", length = 30)
+    private String paymentStatus = "pending";
+
+    @JsonProperty("addressSnapshot")
+    public Map<String, String> getAddressSnapshot() {
+        if (deliveryAddressSnapshot == null || deliveryAddressSnapshot.isBlank()) return Map.of();
+        try {
+            return new ObjectMapper().readValue(deliveryAddressSnapshot, new TypeReference<>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
 }

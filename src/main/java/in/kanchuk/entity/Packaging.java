@@ -3,6 +3,8 @@ package in.kanchuk.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 
@@ -25,6 +27,7 @@ public class Packaging extends BaseEntity {
     @Column(name = "weight_grams")
     private Integer weightGrams;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "dimensions_cm", columnDefinition = "jsonb")
     private String dimensionsCm;
 
