@@ -32,12 +32,27 @@ public class JwtUtil {
                 .compact();
     }
 
+    public String generateVendorToken(String email, String sellerId) {
+        return Jwts.builder()
+                .subject(email)
+                .claim("role", "VENDOR")
+                .claim("sellerId", sellerId)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expirationMs))
+                .signWith(key)
+                .compact();
+    }
+
     public String extractSubject(String token) {
         return parseClaims(token).getPayload().getSubject();
     }
 
     public String extractRole(String token) {
         return parseClaims(token).getPayload().get("role", String.class);
+    }
+
+    public String extractSellerId(String token) {
+        return parseClaims(token).getPayload().get("sellerId", String.class);
     }
 
     public boolean isValid(String token) {

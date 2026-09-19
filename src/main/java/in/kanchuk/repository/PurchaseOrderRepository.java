@@ -10,4 +10,7 @@ import java.util.UUID;
 public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UUID> {
     Page<PurchaseOrder> findAll(Pageable pageable);
     Page<PurchaseOrder> findByPoNumberContainingIgnoreCase(String poNumber, Pageable pageable);
+    Page<PurchaseOrder> findByStatus(String status, Pageable pageable);
+    Page<PurchaseOrder> findBySeller_Id(UUID sellerId, Pageable pageable);
+    Page<PurchaseOrder> findByStatusAndSeller_Id(String status, UUID sellerId, Pageable pageable);
 }

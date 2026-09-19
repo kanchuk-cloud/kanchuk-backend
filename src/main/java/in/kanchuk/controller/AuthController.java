@@ -20,4 +20,9 @@ public class AuthController {
     public ResponseEntity<ApiResponse<TokenResponse>> adminLogin(@Valid @RequestBody LoginRequest req) {
         return ResponseEntity.ok(ApiResponse.ok(authService.loginAdmin(req)));
     }
+
+    @PostMapping("/vendor/login")
+    public ResponseEntity<ApiResponse<TokenResponse>> vendorLogin(@Valid @RequestBody LoginRequest req) {
+        return ResponseEntity.ok(ApiResponse.ok(authService.loginVendor(req)));
+    }
 }

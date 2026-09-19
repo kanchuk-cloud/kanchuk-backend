@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/catalogue/**").permitAll()
                         .requestMatchers("/marketing/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/vendor/**").hasRole("VENDOR")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

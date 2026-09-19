@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface InventoryLevelRepository extends JpaRepository<InventoryLevel, UUID> {
@@ -82,6 +83,10 @@ public interface InventoryLevelRepository extends JpaRepository<InventoryLevel, 
         """)
     Long findAvailableQtyBySkuAndLocation(@Param("sku") String sku,
                                           @Param("locationId") UUID locationId);
+
+    @Query("SELECT il FROM InventoryLevel il WHERE il.listing.id = :listingId AND il.location.id = :locationId")
+    Optional<InventoryLevel> findByListingIdAndLocationId(@Param("listingId") UUID listingId,
+                                                          @Param("locationId") UUID locationId);
 
     @Query("""
         SELECT DISTINCT il.location

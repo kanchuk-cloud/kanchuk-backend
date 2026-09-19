@@ -33,8 +33,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwtUtil.isValid(token)) {
                 String subject = jwtUtil.extractSubject(token);
                 String role = jwtUtil.extractRole(token);
+                // For vendor tokens, store sellerId as credentials for use in controllers
+                String sellerId = "VENDOR".equals(role) ? jwtUtil.extractSellerId(token) : null;
                 var auth = new UsernamePasswordAuthenticationToken(
-                        subject, null,
+                        subject, sellerId,
                         List.of(new SimpleGrantedAuthority("ROLE_" + role)));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
