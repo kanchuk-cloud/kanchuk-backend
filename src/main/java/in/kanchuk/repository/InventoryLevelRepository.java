@@ -14,7 +14,14 @@ import java.util.UUID;
 
 public interface InventoryLevelRepository extends JpaRepository<InventoryLevel, UUID> {
 
-    Page<InventoryLevel> findAll(Pageable pageable);
+    @Query(value = """
+        SELECT il FROM InventoryLevel il
+        JOIN FETCH il.listing pl JOIN FETCH pl.variant pv JOIN FETCH pv.product p
+        JOIN FETCH il.location loc
+        ORDER BY p.name ASC, pv.sku ASC
+        """,
+        countQuery = "SELECT COUNT(il) FROM InventoryLevel il")
+    Page<InventoryLevel> findAllEagerPaged(Pageable pageable);
 
     @Query("""
         SELECT il FROM InventoryLevel il
@@ -87,6 +94,43 @@ public interface InventoryLevelRepository extends JpaRepository<InventoryLevel, 
     @Query("SELECT il FROM InventoryLevel il WHERE il.listing.id = :listingId AND il.location.id = :locationId")
     Optional<InventoryLevel> findByListingIdAndLocationId(@Param("listingId") UUID listingId,
                                                           @Param("locationId") UUID locationId);
+
+    @Query(value = """
+        SELECT il FROM InventoryLevel il
+        JOIN FETCH il.listing pl JOIN FETCH pl.variant pv JOIN FETCH pv.product p
+        JOIN FETCH il.location loc
+        WHERE il.listing.id = :listingId ORDER BY loc.name ASC
+        """,
+        countQuery = "SELECT COUNT(il) FROM InventoryLevel il WHERE il.listing.id = :listingId")
+    Page<InventoryLevel> findByListingId(@Param("listingId") UUID listingId, Pageable pageable);
+
+    @Query(value = """
+        SELECT il FROM InventoryLevel il
+        JOIN FETCH il.listing pl JOIN FETCH pl.variant pv JOIN FETCH pv.product p
+        JOIN FETCH il.location loc
+        WHERE il.location.id = :locationId ORDER BY p.name ASC
+        """,
+        countQuery = "SELECT COUNT(il) FROM InventoryLevel il WHERE il.location.id = :locationId")
+    Page<InventoryLevel> findByLocationId(@Param("locationId") UUID locationId, Pageable pageable);
+
+    @Query(value = """
+        SELECT il FROM InventoryLevel il
+        JOIN FETCH il.listing pl JOIN FETCH pl.variant pv JOIN FETCH pv.product p
+        JOIN FETCH il.location loc
+        WHERE il.listing.id = :listingId AND il.location.id = :locationId
+        """,
+        countQuery = "SELECT COUNT(il) FROM InventoryLevel il WHERE il.listing.id = :listingId AND il.location.id = :locationId")
+    Page<InventoryLevel> findByListingIdAndLocationId(@Param("listingId") UUID listingId,
+                                                      @Param("locationId") UUID locationId, Pageable pageable);
+
+    @Query(value = """
+        SELECT il FROM InventoryLevel il
+        JOIN FETCH il.listing pl JOIN FETCH pl.variant pv JOIN FETCH pv.product p
+        JOIN FETCH il.location loc
+        WHERE il.quantityOnHand <= il.lowStockThreshold ORDER BY il.quantityOnHand ASC
+        """,
+        countQuery = "SELECT COUNT(il) FROM InventoryLevel il WHERE il.quantityOnHand <= il.lowStockThreshold")
+    Page<InventoryLevel> findLowStock(Pageable pageable);
 
     @Query("""
         SELECT DISTINCT il.location

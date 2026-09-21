@@ -12,6 +12,7 @@ import in.kanchuk.repository.InventoryLevelRepository;
 import in.kanchuk.repository.PurchaseOrderItemRepository;
 import in.kanchuk.repository.PurchaseOrderRepository;
 import in.kanchuk.service.GenericAdminService;
+import in.kanchuk.service.InventoryService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,7 @@ public class AdminGrnController extends GenericAdminService {
     private final PurchaseOrderRepository poRepo;
     private final PurchaseOrderItemRepository poItemRepo;
     private final InventoryLevelRepository inventoryRepo;
+    private final InventoryService inventoryService;
 
     // ── Get a single GRN (with items) ─────────────────────────────────────
 
@@ -139,17 +141,14 @@ public class AdminGrnController extends GenericAdminService {
             PurchaseOrderItem poItem = grnItem.getPurchaseOrderItem();
             if (poItem.getListingId() == null || locationId == null) continue;
 
-            // Find existing inventory level for this listing + location
-            inventoryRepo.findByListingIdAndLocationId(poItem.getListingId(), locationId)
-                    .ifPresentOrElse(
-                            level -> {
-                                level.setQuantityOnHand(level.getQuantityOnHand() + acceptedQty);
-                                inventoryRepo.save(level);
-                            },
-                            () -> {
-                                // No existing record — skip (admin must create inventory level first)
-                            }
-                    );
+            // Skip if no inventory level exists yet
+            if (inventoryRepo.findByListingIdAndLocationId(poItem.getListingId(), locationId).isEmpty()) continue;
+
+            inventoryService.adjustStock(
+                    poItem.getListingId(), locationId,
+                    acceptedQty, "grn_receipt",
+                    "goods_receipt", grn.getId(),
+                    "GRN " + grn.getGrnNumber(), null);
         }
     }
 
