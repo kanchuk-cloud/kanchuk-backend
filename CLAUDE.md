@@ -31,17 +31,31 @@ Environment variables (see `.env.example`): `DB_URL`, `DB_USERNAME`, `DB_PASSWOR
 
 There is intentionally no service layer. Controllers inject Spring Data repositories directly. The only exceptions are:
 
-- `GenericAdminService` — abstract utility base extended by all controllers (both admin and public). Provides:
+- `GenericAdminService` — abstract utility base extended by **all** controller types (admin, public, and vendor — despite the name). Provides:
   - `pageRequest(page, limit)` — 1-indexed page, sorted by `createdAt DESC`
   - `buildMeta(Page<?> pg, int page, int limit)` — builds the `PageMeta` response object
   - `findOrThrow(repo, id, entityName)` — throws `EntityNotFoundException` (caught by `GlobalExceptionHandler`)
   - `applyPatch(entity, fields)` — reflection-based field setter for PUT endpoints that receive `Map<String, Object>`. Silently swallows any reflection error via `catch (Exception ignored)`.
 
-- `AuthService` — a real `@Service` bean (the only one). Handles the admin login flow: look up `AdminUser` by email, BCrypt-verify the password, generate a JWT via `JwtUtil`.
+- `AuthService` — a real `@Service` bean (the only one). Handles both admin and vendor login flows via BCrypt + JWT.
 
-**`applyPatch` limitation**: it coerces scalars (String, Boolean, Integer, Long, BigDecimal, UUID, OffsetDateTime, List) but cannot set `@ManyToOne` relations by ID. To update a relation (e.g. `category`), fetch the target entity from its repository first, then call the setter directly.
+**`applyPatch` limitations**:
+- Coerces scalars (String, Boolean, Integer, Long, BigDecimal, UUID, OffsetDateTime, List) but **cannot set `@ManyToOne` relations by ID** — fetch the target entity from its repository first, then call the setter directly.
+- Lombok strips the `is` prefix from boolean field names (field `isActive` → setter `setActive`). `applyPatch` handles this transparently, but the map key must be `"isActive"` not `"active"` to match.
 
-**Exception**: `PublicDeliveryController` does not extend `GenericAdminService` — it uses `@RequiredArgsConstructor` directly and performs its own logic without the base class helpers.
+**Exception**: `PublicDeliveryController` does not extend `GenericAdminService` — it uses `@RequiredArgsConstructor` directly.
+
+### Three User Systems
+
+There are three distinct user entities, each with their own JWT:
+
+| Entity | Login endpoint | Role in JWT | Route prefix |
+|--------|---------------|-------------|--------------|
+| `AdminUser` | `POST /api/v1/auth/admin/login` | `ROLE_ADMIN` | `/api/v1/admin/**` |
+| `VendorUser` (linked to `Seller`) | `POST /api/v1/auth/vendor/login` | `ROLE_VENDOR` | `/api/v1/vendor/**` |
+| `User` (B2C customer) | *(not yet implemented in backend)* | — | — |
+
+Vendor JWTs embed the `sellerId` as an extra claim. `JwtAuthenticationFilter` stores it in `Authentication.getCredentials()` — vendor controllers retrieve it via `currentSellerId(auth)` for row-level isolation.
 
 ### Request Body Pattern
 
@@ -54,13 +68,29 @@ All responses use `ApiResponse<T>` — factory methods: `ApiResponse.ok(data)`, 
 ### API Route Structure
 
 ```
-POST /api/v1/auth/admin/login     — public, returns JWT
-GET  /api/v1/public/**            — public (no auth)
+POST /api/v1/auth/admin/login     — public, returns admin JWT
+POST /api/v1/auth/vendor/login    — public, returns vendor JWT (with sellerId claim)
+     /api/v1/public/**            — public (no auth)
      /uploads/**                  — public (static file serving)
-/api/v1/admin/**                  — requires ROLE_ADMIN JWT
+     /catalogue/**                — public (static file serving alias)
+     /marketing/**                — public (static file serving alias)
+     /api/v1/admin/**             — requires ROLE_ADMIN JWT
+     /api/v1/vendor/**            — requires ROLE_VENDOR JWT
 ```
 
-JWT is stateless (no sessions). `JwtAuthenticationFilter` validates `Authorization: Bearer <token>`, extracts subject (admin email) and `role` claim, and sets the `SecurityContext`. `JwtUtil` generates and validates tokens using HMAC-SHA with the configured secret.
+JWT is stateless (no sessions). `JwtAuthenticationFilter` validates `Authorization: Bearer <token>`, extracts subject and `role` claim, and sets the `SecurityContext`. `JwtUtil` generates and validates tokens using HMAC-SHA with the configured secret.
+
+### Controller Package Layout
+
+```
+controller/
+  AuthController.java           — /api/v1/auth/** (admin + vendor login)
+  admin/Admin*Controller.java   — /api/v1/admin/** (ROLE_ADMIN)
+  pub/Public*Controller.java    — /api/v1/public/** (no auth)
+  vendor/Vendor*Controller.java — /api/v1/vendor/** (ROLE_VENDOR)
+```
+
+Vendor controllers enforce row-level isolation: every query filters by `sellerId` extracted from the JWT so a vendor can only see their own `PurchaseOrder`s and `GoodsReceipt`s.
 
 ### Entity Hierarchy
 

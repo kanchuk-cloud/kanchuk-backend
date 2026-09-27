@@ -26,6 +26,9 @@ public class InventoryLevel extends BaseEntity {
     @Column(name = "quantity_on_hand", nullable = false)
     private int quantityOnHand = 0;
 
+    @Column(name = "total_quantity", nullable = false)
+    private int totalQuantity = 0;
+
     @Column(name = "quantity_reserved", nullable = false)
     private int quantityReserved = 0;
 

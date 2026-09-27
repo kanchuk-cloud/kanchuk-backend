@@ -20,6 +20,8 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     Optional<Order> findByOrderNumber(String orderNumber);
 
+    List<Order> findByUserIdOrderByPlacedAtDesc(UUID userId);
+
     @Query("SELECT o.orderNumber FROM Order o WHERE o.orderNumber LIKE :prefix%")
     List<String> findOrderNumbersByPrefix(@Param("prefix") String prefix);
 }

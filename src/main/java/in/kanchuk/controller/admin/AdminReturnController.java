@@ -6,6 +6,8 @@ import in.kanchuk.repository.OrderItemRepository;
 import in.kanchuk.repository.OrderRepository;
 import in.kanchuk.repository.ReturnRepository;
 import in.kanchuk.service.GenericAdminService;
+import in.kanchuk.service.SmsService;
+import in.kanchuk.sms.template.OrderNotificationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,7 @@ public class AdminReturnController extends GenericAdminService {
     private final ReturnRepository repo;
     private final OrderRepository orderRepo;
     private final OrderItemRepository orderItemRepo;
+    private final SmsService smsService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Return>>> list(
@@ -65,9 +68,23 @@ public class AdminReturnController extends GenericAdminService {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<ApiResponse<Return>> update(@PathVariable UUID id, @RequestBody Map<String, Object> fields) {
         Return e = findOrThrow(repo, id, "Return");
+        String prevStatus = e.getStatus();
         applyPatch(e, fields);
-        return ResponseEntity.ok(ApiResponse.ok(repo.save(e)));
+        Return saved = repo.save(e);
+        if ("refunded".equals(saved.getStatus()) && !"refunded".equals(prevStatus)) {
+            String phone = returnOrderPhone(saved);
+            smsService.sendOrderNotification(
+                    phone, saved.getOrder().getOrderNumber(), OrderNotificationType.REFUND_COMPLETED);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(saved));
+    }
+
+    private String returnOrderPhone(Return r) {
+        var order = r.getOrder();
+        if (order.getUser() != null && order.getUser().getPhone() != null) return order.getUser().getPhone();
+        return order.getAddressSnapshot().getOrDefault("phone", null);
     }
 }

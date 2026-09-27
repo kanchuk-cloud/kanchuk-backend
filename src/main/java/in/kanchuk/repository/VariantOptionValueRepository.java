@@ -17,6 +17,9 @@ public interface VariantOptionValueRepository extends JpaRepository<VariantOptio
            "WHERE vov.id.variantId = :variantId")
     List<VariantOptionValue> findByVariantIdWithDetails(@Param("variantId") UUID variantId);
 
+    @Query("SELECT vov.id.variantId FROM VariantOptionValue vov WHERE vov.id.optionValueId = :optionValueId")
+    List<UUID> findVariantIdsByOptionValueId(@Param("optionValueId") UUID optionValueId);
+
     @Modifying
     @Query("DELETE FROM VariantOptionValue vov WHERE vov.id.optionValueId = :optionValueId")
     void deleteByOptionValueId(@Param("optionValueId") UUID optionValueId);

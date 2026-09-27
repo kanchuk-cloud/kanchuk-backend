@@ -64,6 +64,8 @@ public class AdminInventoryController extends GenericAdminService {
                 ? Integer.parseInt(body.get("quantityOnHand").toString()) : 0);
         il.setQuantityReserved(body.containsKey("quantityReserved")
                 ? Integer.parseInt(body.get("quantityReserved").toString()) : 0);
+        il.setTotalQuantity(body.containsKey("totalQuantity")
+                ? Integer.parseInt(body.get("totalQuantity").toString()) : il.getQuantityOnHand());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(repo.save(il)));
     }

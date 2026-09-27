@@ -334,6 +334,11 @@ public class AdminProductController extends GenericAdminService {
     public ResponseEntity<ApiResponse<Void>> deleteOptionValue(
             @PathVariable UUID id, @PathVariable UUID valueId) {
         findOrThrow(repo, id, "Product");
+        // Delete variants that used this option value (they become invalid without it)
+        List<UUID> orphanedVariantIds = variantOptionValueRepo.findVariantIdsByOptionValueId(valueId);
+        if (!orphanedVariantIds.isEmpty()) {
+            variantRepo.deleteAllById(orphanedVariantIds);
+        }
         variantOptionValueRepo.deleteByOptionValueId(valueId);
         optionValueRepo.deleteById(valueId);
         return ResponseEntity.ok(ApiResponse.deleted());

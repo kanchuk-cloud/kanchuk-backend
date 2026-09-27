@@ -5,6 +5,8 @@ import in.kanchuk.dto.response.ApiResponse;
 import in.kanchuk.entity.Order;
 import in.kanchuk.entity.OrderItem;
 import in.kanchuk.entity.User;
+import in.kanchuk.entity.InventoryLevel;
+import in.kanchuk.repository.InventoryLevelRepository;
 import in.kanchuk.repository.OrderItemRepository;
 import in.kanchuk.repository.OrderRepository;
 import in.kanchuk.repository.UserRepository;
@@ -28,8 +30,71 @@ public class PublicOrderController {
     private final OrderRepository orderRepo;
     private final OrderItemRepository itemRepo;
     private final UserRepository userRepo;
+    private final InventoryLevelRepository inventoryRepo;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
+
+    @GetMapping("/saved-addresses")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<List<Map<String, String>>>> savedAddresses(
+            @RequestParam String phone) {
+        Optional<User> userOpt = userRepo.findByPhone(phone.trim());
+        if (userOpt.isEmpty()) return ResponseEntity.ok(ApiResponse.ok(List.of()));
+
+        Set<String> seen = new LinkedHashSet<>();
+        List<Map<String, String>> addresses = new ArrayList<>();
+        for (Order o : orderRepo.findByUserIdOrderByPlacedAtDesc(userOpt.get().getId())) {
+            Map<String, String> snap = o.getAddressSnapshot();
+            if (snap.isEmpty() || !snap.containsKey("line1")) continue;
+            String key = snap.getOrDefault("line1", "") + "|" + snap.getOrDefault("pincode", "");
+            if (seen.add(key)) addresses.add(snap);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(addresses));
+    }
+
+    @GetMapping("/lookup")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> lookupByPhone(
+            @RequestParam String phone) {
+        Optional<User> userOpt = userRepo.findByPhone(phone.trim());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        }
+        List<Map<String, Object>> orders = orderRepo.findByUserIdOrderByPlacedAtDesc(userOpt.get().getId())
+                .stream()
+                .map(o -> buildOrderSummary(o))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(orders));
+    }
+
+    private Map<String, Object> buildOrderSummary(Order o) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", o.getId());
+        m.put("orderNumber", o.getOrderNumber());
+        m.put("status", o.getStatus());
+        m.put("total", o.getTotal());
+        m.put("subtotal", o.getSubtotal());
+        m.put("discountAmount", o.getDiscountAmount());
+        m.put("deliveryCharge", o.getDeliveryCharge());
+        m.put("paymentMethod", o.getPaymentMethod());
+        m.put("paymentStatus", o.getPaymentStatus());
+        m.put("placedAt", o.getPlacedAt());
+        m.put("addressSnapshot", o.getAddressSnapshot());
+        m.put("items", itemRepo.findByOrderId(o.getId()).stream().map(item -> {
+            Map<String, Object> im = new LinkedHashMap<>();
+            im.put("id", item.getId());
+            im.put("price", item.getPrice());
+            im.put("quantity", item.getQuantity());
+            try {
+                im.put("productSnapshot", objectMapper.readValue(
+                        item.getProductSnapshot(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {}));
+            } catch (Exception e) {
+                im.put("productSnapshot", Map.of());
+            }
+            return im;
+        }).toList());
+        return m;
+    }
 
     @PostMapping
     @Transactional
@@ -70,7 +135,7 @@ public class PublicOrderController {
 
         order = orderRepo.save(order);
 
-        // Order items
+        // Order items + inventory deduction
         if (body.containsKey("items") && body.get("items") instanceof List<?> rawItems) {
             final Order saved = order;
             for (Object rawItem : rawItems) {
@@ -80,10 +145,25 @@ public class PublicOrderController {
                     OrderItem oi = new OrderItem();
                     oi.setOrder(saved);
                     oi.setPrice(new BigDecimal(item.getOrDefault("price", "0").toString()));
-                    oi.setQuantity(Integer.parseInt(item.getOrDefault("quantity", "1").toString()));
+                    int qty = Integer.parseInt(item.getOrDefault("quantity", "1").toString());
+                    oi.setQuantity(qty);
                     try { oi.setProductSnapshot(objectMapper.writeValueAsString(item)); }
                     catch (Exception ignored) {}
                     itemRepo.save(oi);
+
+                    // Deduct from inventory: pick the location with highest on-hand first
+                    String sku = item.getOrDefault("sku", "").toString();
+                    if (!sku.isBlank()) {
+                        int remaining = qty;
+                        List<InventoryLevel> levels = inventoryRepo.findByVariantSku(sku);
+                        for (InventoryLevel level : levels) {
+                            if (remaining <= 0) break;
+                            int deduct = Math.min(remaining, level.getQuantityOnHand());
+                            level.setQuantityOnHand(level.getQuantityOnHand() - deduct);
+                            inventoryRepo.save(level);
+                            remaining -= deduct;
+                        }
+                    }
                 }
             }
         }
@@ -115,14 +195,8 @@ public class PublicOrderController {
 
         return userRepo.findByPhone(phone).orElseGet(() -> {
             String name = address.getOrDefault("name", "Guest").toString();
-            String email = "guest." + phone + "@kanchuk.in";
-            // Deduplicate email if somehow already taken
-            if (userRepo.findByEmail(email).isPresent()) {
-                email = "guest." + phone + "." + System.currentTimeMillis() + "@kanchuk.in";
-            }
             User guest = new User();
             guest.setName(name);
-            guest.setEmail(email);
             guest.setPhone(phone);
             guest.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
             guest.setActive(true);

@@ -49,6 +49,16 @@ storage:
     upload-dir: ./uploads                  # relative to where the JAR runs
     base-url: http://localhost:8080/uploads
 
+sms:
+  provider: mock     # mock | msg91 | twilio — swap without changing business logic
+  enabled: true      # set false to suppress all SMS (order and OTP) without errors
+
+otp:
+  length: 6
+  expiry-minutes: 5
+  max-attempts: 5
+  resend-cooldown-seconds: 60
+
 logging:
   level:
     in.kanchuk: INFO

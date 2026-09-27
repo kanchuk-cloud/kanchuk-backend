@@ -87,6 +87,10 @@ public class Product extends SoftDeleteEntity {
     @Column(name = "care_instructions", columnDefinition = "jsonb")
     private List<String> careInstructions;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "size_and_fit", columnDefinition = "jsonb")
+    private List<String> sizeAndFit;
+
     @Column(name = "return_policy", columnDefinition = "TEXT")
     private String returnPolicy;
 

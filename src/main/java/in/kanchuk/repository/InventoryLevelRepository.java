@@ -95,6 +95,17 @@ public interface InventoryLevelRepository extends JpaRepository<InventoryLevel, 
     Optional<InventoryLevel> findByListingIdAndLocationId(@Param("listingId") UUID listingId,
                                                           @Param("locationId") UUID locationId);
 
+    @Query("""
+        SELECT il FROM InventoryLevel il
+        JOIN il.listing pl
+        JOIN pl.variant pv
+        WHERE pv.sku = :sku
+          AND pl.deletedAt IS NULL
+          AND pv.deletedAt IS NULL
+        ORDER BY il.quantityOnHand DESC
+        """)
+    List<InventoryLevel> findByVariantSku(@Param("sku") String sku);
+
     @Query(value = """
         SELECT il FROM InventoryLevel il
         JOIN FETCH il.listing pl JOIN FETCH pl.variant pv JOIN FETCH pv.product p

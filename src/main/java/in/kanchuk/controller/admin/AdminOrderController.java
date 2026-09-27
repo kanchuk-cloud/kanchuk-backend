@@ -6,6 +6,8 @@ import in.kanchuk.dto.response.ApiResponse;
 import in.kanchuk.entity.*;
 import in.kanchuk.repository.*;
 import in.kanchuk.service.GenericAdminService;
+import in.kanchuk.service.SmsService;
+import in.kanchuk.sms.template.OrderNotificationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,7 @@ public class AdminOrderController extends GenericAdminService {
     private final ReturnRepository returnRepo;
     private final OrderItemRepository orderItemRepo;
     private final ObjectMapper objectMapper;
+    private final SmsService smsService;
 
     // ── List ──────────────────────────────────────────────────────────────────
 
@@ -58,10 +61,17 @@ public class AdminOrderController extends GenericAdminService {
     // ── Update ────────────────────────────────────────────────────────────────
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<ApiResponse<Order>> update(@PathVariable UUID id, @RequestBody Map<String, Object> fields) {
         Order e = findOrThrow(repo, id, "Order");
+        String prevStatus = e.getStatus();
         applyPatch(e, fields);
-        return ResponseEntity.ok(ApiResponse.ok(repo.save(e)));
+        Order saved = repo.save(e);
+        if ("cancelled".equals(saved.getStatus()) && !"cancelled".equals(prevStatus)) {
+            smsService.sendOrderNotification(
+                    orderPhone(saved), saved.getOrderNumber(), OrderNotificationType.ORDER_CANCELLED);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(saved));
     }
 
     // ── Advance status ────────────────────────────────────────────────────────
@@ -74,8 +84,13 @@ public class AdminOrderController extends GenericAdminService {
         if (body == null) body = Map.of();
         Order order = findOrThrow(repo, id, "Order");
 
+        OrderNotificationType smsType = null;
+
         switch (order.getStatus()) {
-            case "placed" -> order.setStatus("confirmed");
+            case "placed" -> {
+                order.setStatus("confirmed");
+                smsType = OrderNotificationType.ORDER_CONFIRMED;
+            }
 
             case "confirmed" -> {
                 Packaging pkg = new Packaging();
@@ -89,6 +104,7 @@ public class AdminOrderController extends GenericAdminService {
                 if (body.containsKey("notes"))        pkg.setNotes(body.get("notes").toString());
                 packagingRepo.save(pkg);
                 order.setStatus("packed");
+                smsType = OrderNotificationType.ORDER_PACKED;
             }
 
             case "packed" -> {
@@ -114,6 +130,7 @@ public class AdminOrderController extends GenericAdminService {
                 if (body.containsKey("notes"))         dis.setNotes(body.get("notes").toString());
                 dispatchingRepo.save(dis);
                 order.setStatus("shipped");
+                smsType = OrderNotificationType.ORDER_SHIPPED;
             }
 
             case "shipped" -> {
@@ -122,6 +139,7 @@ public class AdminOrderController extends GenericAdminService {
                     fulfillmentRepo.save(f);
                 });
                 order.setStatus("out_for_delivery");
+                smsType = OrderNotificationType.OUT_FOR_DELIVERY;
             }
 
             case "out_for_delivery" -> {
@@ -131,6 +149,7 @@ public class AdminOrderController extends GenericAdminService {
                     fulfillmentRepo.save(f);
                 });
                 order.setStatus("delivered");
+                smsType = OrderNotificationType.ORDER_DELIVERED;
             }
 
             default -> {
@@ -140,6 +159,9 @@ public class AdminOrderController extends GenericAdminService {
         }
 
         repo.save(order);
+        if (smsType != null) {
+            smsService.sendOrderNotification(orderPhone(order), order.getOrderNumber(), smsType);
+        }
         return ResponseEntity.ok(ApiResponse.ok(buildOrderMap(order)));
     }
 
@@ -163,7 +185,18 @@ public class AdminOrderController extends GenericAdminService {
             orderItemRepo.findById(UUID.fromString(body.get("orderItemId").toString()))
                     .ifPresent(r::setOrderItem);
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(returnRepo.save(r)));
+        Return saved = returnRepo.save(r);
+        smsService.sendOrderNotification(
+                orderPhone(order), order.getOrderNumber(), OrderNotificationType.RETURN_INITIATED);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(saved));
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /** Resolves customer phone from user entity first, then address snapshot. */
+    private String orderPhone(Order o) {
+        if (o.getUser() != null && o.getUser().getPhone() != null) return o.getUser().getPhone();
+        return o.getAddressSnapshot().getOrDefault("phone", null);
     }
 
     // ── Builders ──────────────────────────────────────────────────────────────
