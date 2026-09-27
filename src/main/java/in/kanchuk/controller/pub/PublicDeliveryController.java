@@ -117,7 +117,19 @@ public class PublicDeliveryController {
             }
         }
 
-        DeliveryCheckResponse.DeliveryOption express = zone.isExpressAvailable()
+        // Cross-city check: if the fulfilling warehouse is in a different city than the delivery
+        // pincode, local zone times (2 days, 120-min express) don't apply.
+        // Compare cities case-insensitively; treat unknown hub as same-city (no sku provided).
+        boolean crossCity = hubCity != null && p.getCity() != null
+                && !hubCity.trim().equalsIgnoreCase(p.getCity().trim());
+
+        DeliveryCheckResponse.DeliveryOption standardDelivery = DeliveryCheckResponse.DeliveryOption.builder()
+            .available(true)
+            .charge(crossCity ? zone.getCrossCityDeliveryCharge() : zone.getStandardDeliveryCharge())
+            .estimatedDays(crossCity ? zone.getCrossCityDeliveryDays() : zone.getStandardDeliveryDays())
+            .build();
+
+        DeliveryCheckResponse.DeliveryOption expressDelivery = (!crossCity && zone.isExpressAvailable())
             ? DeliveryCheckResponse.DeliveryOption.builder()
                 .available(true)
                 .charge(zone.getExpressDeliveryCharge())
@@ -136,12 +148,8 @@ public class PublicDeliveryController {
                 .code(zone.getCode())
                 .name(zone.getName())
                 .build())
-            .standardDelivery(DeliveryCheckResponse.DeliveryOption.builder()
-                .available(true)
-                .charge(zone.getStandardDeliveryCharge())
-                .estimatedDays(zone.getStandardDeliveryDays())
-                .build())
-            .expressDelivery(express)
+            .standardDelivery(standardDelivery)
+            .expressDelivery(expressDelivery)
             .codAvailable(zone.isCodAvailable())
             .hubName(hubName)
             .hubCity(hubCity)

@@ -14,6 +14,8 @@ import java.util.UUID;
 
 public interface InventoryLevelRepository extends JpaRepository<InventoryLevel, UUID> {
 
+    void deleteByListingIdIn(List<UUID> listingIds);
+
     @Query(value = """
         SELECT il FROM InventoryLevel il
         JOIN FETCH il.listing pl JOIN FETCH pl.variant pv JOIN FETCH pv.product p

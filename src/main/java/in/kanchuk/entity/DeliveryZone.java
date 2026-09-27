@@ -38,4 +38,10 @@ public class DeliveryZone extends BaseEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(name = "cross_city_delivery_days", nullable = false)
+    private int crossCityDeliveryDays = 5;
+
+    @Column(name = "cross_city_delivery_charge", nullable = false, precision = 10, scale = 2)
+    private BigDecimal crossCityDeliveryCharge = new BigDecimal("49.00");
 }

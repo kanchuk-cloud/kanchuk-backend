@@ -10,4 +10,5 @@ import java.util.UUID;
 public interface ProductListingRepository extends JpaRepository<ProductListing, UUID> {
     Optional<ProductListing> findFirstByVariantIdAndDeletedAtIsNull(UUID variantId);
     List<ProductListing> findByVariantIdAndDeletedAtIsNull(UUID variantId);
+    List<ProductListing> findByVariantIdIn(List<UUID> variantIds);
 }

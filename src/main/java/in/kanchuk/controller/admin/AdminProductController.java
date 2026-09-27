@@ -34,6 +34,7 @@ public class AdminProductController extends GenericAdminService {
     private final FabricRepository fabricRepo;
     private final DesignerRepository designerRepo;
     private final TaxCategoryRepository taxCategoryRepo;
+    private final InventoryLevelRepository inventoryLevelRepo;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Product>>> list(
@@ -337,7 +338,21 @@ public class AdminProductController extends GenericAdminService {
         // Delete variants that used this option value (they become invalid without it)
         List<UUID> orphanedVariantIds = variantOptionValueRepo.findVariantIdsByOptionValueId(valueId);
         if (!orphanedVariantIds.isEmpty()) {
-            variantRepo.deleteAllById(orphanedVariantIds);
+            // Soft-delete listings — order_items and stock_transfer_items retain their FK references
+            // to a still-existing (soft-deleted) row, so no constraint violation occurs.
+            List<ProductListing> listings = listingRepo.findByVariantIdIn(orphanedVariantIds);
+            if (!listings.isEmpty()) {
+                List<UUID> listingIds = listings.stream().map(ProductListing::getId).toList();
+                inventoryLevelRepo.deleteByListingIdIn(listingIds);
+                listings.forEach(ProductListing::softDelete);
+                listingRepo.saveAll(listings);
+            }
+            // Soft-delete the variants themselves
+            List<ProductVariant> variants = variantRepo.findAllById(orphanedVariantIds);
+            variants.forEach(ProductVariant::softDelete);
+            variantRepo.saveAll(variants);
+            // Hard-delete the join table rows (no historical data there)
+            variantOptionValueRepo.deleteByVariantIdIn(orphanedVariantIds);
         }
         variantOptionValueRepo.deleteByOptionValueId(valueId);
         optionValueRepo.deleteById(valueId);
