@@ -23,28 +23,28 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
            " LOWER(p.sku) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Product> searchProducts(@Param("search") String search, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "images"})
+    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "blouseFabric", "dupattaFabric", "images"})
     Optional<Product> findWithRelationsById(UUID id);
 
-    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "images"})
+    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "blouseFabric", "dupattaFabric", "images"})
     Optional<Product> findBySkuAndDeletedAtIsNull(String sku);
 
-    @EntityGraph(attributePaths = {"category", "subCategory", "fabric"})
+    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "blouseFabric", "dupattaFabric"})
     Page<Product> findByCategorySlugAndDeletedAtIsNullAndIsActiveTrue(String categorySlug, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "subCategory", "fabric"})
+    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "blouseFabric", "dupattaFabric"})
     Page<Product> findByDeletedAtIsNullAndIsActiveTrue(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "subCategory", "fabric"})
+    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "blouseFabric", "dupattaFabric"})
     Page<Product> findByGenderAndDeletedAtIsNullAndIsActiveTrue(String gender, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "subCategory", "fabric"})
+    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "blouseFabric", "dupattaFabric"})
     Page<Product> findByGenderAndIsNewTrueAndDeletedAtIsNullAndIsActiveTrue(String gender, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "subCategory", "fabric"})
+    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "blouseFabric", "dupattaFabric"})
     Page<Product> findByGenderAndCategorySlugAndDeletedAtIsNullAndIsActiveTrue(String gender, String categorySlug, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"category", "subCategory", "fabric"})
+    @EntityGraph(attributePaths = {"category", "subCategory", "fabric", "blouseFabric", "dupattaFabric"})
     Page<Product> findByIsNewTrueAndDeletedAtIsNullAndIsActiveTrue(Pageable pageable);
 
     @EntityGraph(attributePaths = {"category", "subCategory"})

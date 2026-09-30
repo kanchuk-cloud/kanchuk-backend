@@ -56,6 +56,14 @@ public class Product extends SoftDeleteEntity {
     private Fabric fabric;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "blouse_fabric_id")
+    private Fabric blouseFabric;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dupatta_fabric_id")
+    private Fabric dupattaFabric;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tax_category_id")
     private TaxCategory taxCategory;
 

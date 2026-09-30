@@ -104,6 +104,22 @@ public class AdminProductController extends GenericAdminService {
             fabricRepo.findById(UUID.fromString(fields.get("fabricId").toString()))
                     .ifPresent(e::setFabric);
         }
+        if (fields.containsKey("blouseFabricId")) {
+            if (fields.get("blouseFabricId") != null && !fields.get("blouseFabricId").toString().isEmpty()) {
+                fabricRepo.findById(UUID.fromString(fields.get("blouseFabricId").toString()))
+                        .ifPresent(e::setBlouseFabric);
+            } else {
+                e.setBlouseFabric(null);
+            }
+        }
+        if (fields.containsKey("dupattaFabricId")) {
+            if (fields.get("dupattaFabricId") != null && !fields.get("dupattaFabricId").toString().isEmpty()) {
+                fabricRepo.findById(UUID.fromString(fields.get("dupattaFabricId").toString()))
+                        .ifPresent(e::setDupattaFabric);
+            } else {
+                e.setDupattaFabric(null);
+            }
+        }
         if (fields.containsKey("designerId") && fields.get("designerId") != null) {
             designerRepo.findById(UUID.fromString(fields.get("designerId").toString()))
                     .ifPresent(e::setDesigner);

@@ -1,18 +1,18 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://ep-red-smoke-ay31v4nv.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&connect_timeout=10&socket_timeout=30}
+    url: ${DB_URL:jdbc:postgresql://ep-red-smoke-ay31v4nv.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&connect_timeout=30&socket_timeout=30&tcpKeepAlive=true}
     username: ${DB_USERNAME:neondb_owner}
     password: ${DB_PASSWORD:npg_5kAZU6YgqORh}
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-test-query: SELECT 1
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-      keepalive-time: 30000
-      minimum-idle: 1
+      connection-timeout: 60000        # 60s — gives Neon enough time to wake from cold start
+      idle-timeout: 300000             # 5 min — retire idle connections before Neon suspends them
+      max-lifetime: 600000             # 10 min — hard ceiling well under Neon's server-side close
+      keepalive-time: 120000           # 2 min — keeps compute awake between requests
+      minimum-idle: 0                  # don't maintain background connections Neon will close
       maximum-pool-size: 5
-      initialization-fail-timeout: 60000
+      initialization-fail-timeout: -1  # don't fail startup if DB is initially unreachable
 
   jpa:
     hibernate:
