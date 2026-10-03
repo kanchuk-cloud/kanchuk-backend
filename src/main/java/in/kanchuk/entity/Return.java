@@ -30,9 +30,37 @@ public class Return extends BaseEntity {
     @Column(name = "refund_amount", precision = 10, scale = 2)
     private BigDecimal refundAmount;
 
+    @Column(name = "coins_refunded")
+    private Integer coinsRefunded;
+
     @Column(name = "requested_at")
     private OffsetDateTime requestedAt;
 
     @Column(name = "resolved_at")
     private OffsetDateTime resolvedAt;
+
+    // Reverse pickup
+    @Column(name = "awb_number", length = 100)
+    private String awbNumber;
+
+    @Column(name = "carrier", length = 100)
+    private String carrier;
+
+    @Column(name = "pickup_scheduled_at")
+    private OffsetDateTime pickupScheduledAt;
+
+    // Warehouse
+    @Column(name = "received_at")
+    private OffsetDateTime receivedAt;
+
+    @Column(name = "inspection_notes", columnDefinition = "TEXT")
+    private String inspectionNotes;
+
+    // Rejection
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
+    // SLA
+    @Column(name = "expected_return_by")
+    private OffsetDateTime expectedReturnBy;
 }

@@ -126,10 +126,13 @@ public class PublicWalletController extends GenericAdminService {
         if (coinsRedeemed > 0) {
             int newCoins = Math.max(0, u.getLoyaltyPoints() - coinsRedeemed);
             u.setLoyaltyPoints(newCoins);
+            BigDecimal coinRupeeValue = BigDecimal.valueOf(coinsRedeemed)
+                    .divide(s.getCoinsPerRupee(), 2, RoundingMode.DOWN);
             WalletLedger coinEntry = new WalletLedger();
             coinEntry.setUser(u);
             coinEntry.setOrder(order);
             coinEntry.setType("COIN_REDEEM");
+            coinEntry.setAmount(coinRupeeValue.negate());
             coinEntry.setCoinAmount(-coinsRedeemed);
             coinEntry.setCoinBalanceAfter(newCoins);
             ledgerRepo.save(coinEntry);

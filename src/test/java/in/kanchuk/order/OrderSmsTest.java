@@ -35,6 +35,9 @@ class OrderSmsTest {
     @Mock OrderItemRepository orderItemRepo;
     @Mock ObjectMapper objectMapper;
     @Mock SmsService smsService;
+    @Mock WalletLedgerRepository walletLedgerRepo;
+    @Mock UserRepository userRepo;
+    @Mock LoyaltySettingsRepository loyaltySettingsRepo;
     @InjectMocks AdminOrderController controller;
 
     private UUID orderId;

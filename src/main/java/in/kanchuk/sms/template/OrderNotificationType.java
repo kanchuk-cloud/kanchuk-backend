@@ -9,5 +9,7 @@ public enum OrderNotificationType {
     ORDER_DELIVERED,
     ORDER_CANCELLED,
     RETURN_INITIATED,
+    RETURN_APPROVED,
+    RETURN_REJECTED,
     REFUND_COMPLETED
 }

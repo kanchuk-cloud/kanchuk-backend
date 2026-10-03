@@ -29,6 +29,10 @@ public final class SmsTemplates {
                 "Your order #{orderNumber} has been cancelled. Contact us for assistance.");
         ORDER_TEMPLATES.put(OrderNotificationType.RETURN_INITIATED,
                 "Return for order #{orderNumber} has been initiated. We will process it shortly.");
+        ORDER_TEMPLATES.put(OrderNotificationType.RETURN_APPROVED,
+                "Your return request for order #{orderNumber} has been approved. We will arrange a pickup shortly.");
+        ORDER_TEMPLATES.put(OrderNotificationType.RETURN_REJECTED,
+                "Your return request for order #{orderNumber} could not be approved. Please contact us for assistance.");
         ORDER_TEMPLATES.put(OrderNotificationType.REFUND_COMPLETED,
                 "Refund for order #{orderNumber} has been processed and will reflect in 5-7 business days.");
     }

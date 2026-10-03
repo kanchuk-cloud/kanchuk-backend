@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import in.kanchuk.dto.response.ApiResponse;
 import in.kanchuk.entity.Order;
 import in.kanchuk.entity.OrderItem;
+import in.kanchuk.entity.Return;
 import in.kanchuk.entity.User;
 import in.kanchuk.entity.InventoryLevel;
 import in.kanchuk.repository.InventoryLevelRepository;
 import in.kanchuk.repository.OrderItemRepository;
 import in.kanchuk.repository.OrderRepository;
+import in.kanchuk.repository.ReturnRepository;
 import in.kanchuk.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,7 @@ public class PublicOrderController {
     private final OrderRepository orderRepo;
     private final OrderItemRepository itemRepo;
     private final UserRepository userRepo;
+    private final ReturnRepository returnRepo;
     private final InventoryLevelRepository inventoryRepo;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
@@ -101,6 +104,16 @@ public class PublicOrderController {
             }
             return im;
         }).toList());
+        // Return info for status display on list page
+        List<Return> returns = returnRepo.findByOrderId(o.getId());
+        if (!returns.isEmpty()) {
+            Return ret = returns.get(0);
+            m.put("returnStatus", ret.getStatus());
+            m.put("returnExpectedBy", ret.getExpectedReturnBy());
+            m.put("returnRefundAmount", ret.getRefundAmount());
+            m.put("returnCoinsRefunded", ret.getCoinsRefunded());
+            m.put("returnResolvedAt", ret.getResolvedAt() != null ? ret.getResolvedAt() : ret.getUpdatedAt());
+        }
         return m;
     }
 

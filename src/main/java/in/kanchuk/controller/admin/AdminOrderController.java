@@ -31,10 +31,12 @@ public class AdminOrderController extends GenericAdminService {
     private final FulfillmentRepository fulfillmentRepo;
     private final ReturnRepository returnRepo;
     private final OrderItemRepository orderItemRepo;
+    private final InventoryLevelRepository inventoryRepo;
     private final ObjectMapper objectMapper;
     private final SmsService smsService;
     private final WalletLedgerRepository walletLedgerRepo;
     private final UserRepository userRepo;
+    private final LoyaltySettingsRepository loyaltySettingsRepo;
 
     // ── List ──────────────────────────────────────────────────────────────────
 
@@ -70,6 +72,7 @@ public class AdminOrderController extends GenericAdminService {
         applyPatch(e, fields);
         Order saved = repo.save(e);
         if ("cancelled".equals(saved.getStatus()) && !"cancelled".equals(prevStatus)) {
+            reverseCancelledOrder(saved);
             smsService.sendOrderNotification(
                     orderPhone(saved), saved.getOrderNumber(), OrderNotificationType.ORDER_CANCELLED);
         }
@@ -179,6 +182,79 @@ public class AdminOrderController extends GenericAdminService {
         return ResponseEntity.ok(ApiResponse.ok(buildOrderMap(order)));
     }
 
+    // ── Cancel reversal ───────────────────────────────────────────────────────
+
+    private void reverseCancelledOrder(Order order) {
+        UUID orderId = order.getId();
+        UUID userId = order.getUser() != null ? order.getUser().getId() : null;
+
+        if (userId != null) {
+            User user = userRepo.findById(userId).orElse(null);
+            if (user != null) {
+                // Reverse COIN_REDEEM
+                walletLedgerRepo.findByOrder_IdAndType(orderId, "COIN_REDEEM").forEach(entry -> {
+                    int coins = Math.abs(entry.getCoinAmount() != null ? entry.getCoinAmount() : 0);
+                    if (coins > 0) {
+                        user.setLoyaltyPoints(user.getLoyaltyPoints() + coins);
+                        WalletLedger rev = new WalletLedger();
+                        rev.setUser(user);
+                        rev.setOrder(order);
+                        rev.setType("COIN_REVERSE");
+                        rev.setCoinAmount(coins);
+                        rev.setCoinBalanceAfter(user.getLoyaltyPoints());
+                        rev.setNote("Coins reversed for cancelled order " + order.getOrderNumber());
+                        walletLedgerRepo.save(rev);
+                    }
+                });
+
+                // Reverse WALLET_DEBIT
+                walletLedgerRepo.findByOrder_IdAndType(orderId, "WALLET_DEBIT").forEach(entry -> {
+                    BigDecimal refund = entry.getAmount() != null ? entry.getAmount().abs() : BigDecimal.ZERO;
+                    if (refund.compareTo(BigDecimal.ZERO) > 0) {
+                        user.setWalletBalance(user.getWalletBalance().add(refund));
+                        WalletLedger rev = new WalletLedger();
+                        rev.setUser(user);
+                        rev.setOrder(order);
+                        rev.setType("WALLET_REVERSE");
+                        rev.setAmount(refund);
+                        rev.setBalanceAfter(user.getWalletBalance());
+                        rev.setNote("Wallet refunded for cancelled order " + order.getOrderNumber());
+                        walletLedgerRepo.save(rev);
+                    }
+                });
+
+                // Cancel pending COIN_EARN
+                walletLedgerRepo.findByOrder_IdAndType(orderId, "COIN_EARN").forEach(earn -> {
+                    if (earn.isPending()) {
+                        earn.setNote((earn.getNote() != null ? earn.getNote() : "") + " [CANCELLED]");
+                        earn.setPending(false);
+                        earn.setCoinAmount(0);
+                        walletLedgerRepo.save(earn);
+                    }
+                });
+
+                userRepo.save(user);
+            }
+        }
+
+        // Restore inventory for each order item
+        itemRepo.findByOrderId(orderId).forEach(item -> {
+            try {
+                Map<String, Object> snap = objectMapper.readValue(
+                        item.getProductSnapshot(), new com.fasterxml.jackson.core.type.TypeReference<>() {});
+                String sku = snap.getOrDefault("sku", "").toString();
+                if (!sku.isBlank()) {
+                    List<InventoryLevel> levels = inventoryRepo.findByVariantSku(sku);
+                    if (!levels.isEmpty()) {
+                        InventoryLevel level = levels.get(0);
+                        level.setQuantityOnHand(level.getQuantityOnHand() + item.getQuantity());
+                        inventoryRepo.save(level);
+                    }
+                }
+            } catch (Exception ignored) {}
+        });
+    }
+
     // ── Initiate return ───────────────────────────────────────────────────────
 
     @PostMapping("/{id}/return")
@@ -236,6 +312,17 @@ public class AdminOrderController extends GenericAdminService {
             m.put("customerName", snap.getOrDefault("name", null));
             m.put("customerPhone", snap.getOrDefault("phone", null));
         }
+        List<Return> rets = returnRepo.findByOrderId(o.getId());
+        if (!rets.isEmpty()) {
+            Return latest = rets.get(rets.size() - 1);
+            m.put("returns", List.of(Map.of(
+                "id", latest.getId(),
+                "status", latest.getStatus(),
+                "requestedAt", latest.getRequestedAt() != null ? latest.getRequestedAt().toString() : ""
+            )));
+        } else {
+            m.put("returns", List.of());
+        }
         return m;
     }
 
@@ -245,6 +332,32 @@ public class AdminOrderController extends GenericAdminService {
         m.put("subtotal", o.getSubtotal());
         m.put("discountAmount", o.getDiscountAmount());
         m.put("deliveryCharge", o.getDeliveryCharge());
+
+        // amount stores the rupee value (negative debit); fall back to coinAmount / coinsPerRupee
+        // for legacy entries created before the amount field was stored
+        List<WalletLedger> redeems = walletLedgerRepo.findByOrder_IdAndType(id, "COIN_REDEEM");
+        BigDecimal coinDiscount;
+        if (redeems.isEmpty()) {
+            coinDiscount = BigDecimal.ZERO;
+        } else {
+            boolean hasRupeeAmount = redeems.stream()
+                    .anyMatch(wl -> wl.getAmount() != null && wl.getAmount().compareTo(BigDecimal.ZERO) != 0);
+            if (hasRupeeAmount) {
+                coinDiscount = redeems.stream()
+                        .map(wl -> wl.getAmount() != null ? wl.getAmount().abs() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            } else {
+                BigDecimal coinsPerRupee = loyaltySettingsRepo.findById(1L)
+                        .map(LoyaltySettings::getCoinsPerRupee)
+                        .orElse(BigDecimal.ONE);
+                coinDiscount = redeems.stream()
+                        .filter(wl -> wl.getCoinAmount() != null && wl.getCoinAmount() != 0)
+                        .map(wl -> BigDecimal.valueOf(Math.abs(wl.getCoinAmount()))
+                                .divide(coinsPerRupee, 2, java.math.RoundingMode.DOWN))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            }
+        }
+        m.put("coinDiscount", coinDiscount);
 
         // Items
         m.put("items", itemRepo.findByOrderId(id).stream().map(item -> {
