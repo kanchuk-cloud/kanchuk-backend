@@ -34,6 +34,14 @@ public class PublicOrderController {
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
 
+    @GetMapping("/{orderNumber}")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getByOrderNumber(@PathVariable String orderNumber) {
+        return orderRepo.findByOrderNumber(orderNumber)
+                .map(o -> ResponseEntity.ok(ApiResponse.ok(buildOrderSummary(o))))
+                .orElse(ResponseEntity.status(404).body(ApiResponse.error("Order not found")));
+    }
+
     @GetMapping("/saved-addresses")
     @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<Map<String, String>>>> savedAddresses(

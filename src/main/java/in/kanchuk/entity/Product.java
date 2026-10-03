@@ -67,10 +67,6 @@ public class Product extends SoftDeleteEntity {
     @JoinColumn(name = "tax_category_id")
     private TaxCategory taxCategory;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "designer_id")
-    private Designer designer;
-
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 

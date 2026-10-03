@@ -33,6 +33,8 @@ public class AdminOrderController extends GenericAdminService {
     private final OrderItemRepository orderItemRepo;
     private final ObjectMapper objectMapper;
     private final SmsService smsService;
+    private final WalletLedgerRepository walletLedgerRepo;
+    private final UserRepository userRepo;
 
     // ── List ──────────────────────────────────────────────────────────────────
 
@@ -150,6 +152,18 @@ public class AdminOrderController extends GenericAdminService {
                 });
                 order.setStatus("delivered");
                 smsType = OrderNotificationType.ORDER_DELIVERED;
+
+                // Activate any pending coin earns for this order
+                walletLedgerRepo.findByOrder_IdAndType(id, "COIN_EARN").forEach(earn -> {
+                    if (earn.isPending() && earn.getCoinAmount() != null && earn.getCoinAmount() > 0) {
+                        User u = earn.getUser();
+                        u.setLoyaltyPoints(u.getLoyaltyPoints() + earn.getCoinAmount());
+                        earn.setCoinBalanceAfter(u.getLoyaltyPoints());
+                        earn.setPending(false);
+                        userRepo.save(u);
+                        walletLedgerRepo.save(earn);
+                    }
+                });
             }
 
             default -> {

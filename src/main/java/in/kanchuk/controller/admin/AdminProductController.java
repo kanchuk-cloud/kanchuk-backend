@@ -32,7 +32,6 @@ public class AdminProductController extends GenericAdminService {
     private final CategoryRepository categoryRepo;
     private final SubCategoryRepository subCategoryRepo;
     private final FabricRepository fabricRepo;
-    private final DesignerRepository designerRepo;
     private final TaxCategoryRepository taxCategoryRepo;
     private final InventoryLevelRepository inventoryLevelRepo;
 
@@ -119,10 +118,6 @@ public class AdminProductController extends GenericAdminService {
             } else {
                 e.setDupattaFabric(null);
             }
-        }
-        if (fields.containsKey("designerId") && fields.get("designerId") != null) {
-            designerRepo.findById(UUID.fromString(fields.get("designerId").toString()))
-                    .ifPresent(e::setDesigner);
         }
         if (fields.containsKey("taxCategoryId") && fields.get("taxCategoryId") != null) {
             taxCategoryRepo.findById(UUID.fromString(fields.get("taxCategoryId").toString()))
