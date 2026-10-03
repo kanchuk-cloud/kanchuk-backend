@@ -102,6 +102,8 @@ Two entities use composite keys with `@EmbeddedId`:
 - `VariantOptionValue` — links `ProductVariant` ↔ `ProductOptionValue`
 - `StockLocationZone` — links `StockLocation` ↔ `DeliveryZone` with a `priority` column
 
+`Testimonial` extends `BaseEntity` (no soft-delete — hard-delete via `repo.deleteById`). Fields: `customerName`, `city`, `quote`, `rating` (SMALLINT 1–5), `productName`, `avatarUrl`, `isVerified`, `isActive`, `displayOrder`. Admin CRUD at `/api/v1/admin/testimonials`; public read at `/api/v1/public/testimonials` (active only, ordered by `displayOrder`, max 20). Migration: `V46__testimonials.sql` (idempotent — uses `CREATE TABLE IF NOT EXISTS` + `DO $$ IF COUNT=0 THEN INSERT $$ ` guard for seed data).
+
 ### Product Catalog Model
 
 The catalog follows a Medusa-style hierarchy:
@@ -145,11 +147,23 @@ Repositories use `@EntityGraph` on specific query methods to eagerly load associ
 
 Spring Data JPA property-path traversal is used for cross-entity filters (e.g. `findByCategorySlugAndDeletedAtIsNull` filters by `category.slug`, not a `categorySlug` column on products).
 
+### Wallet and coin reversal flows
+
+`AdminOrderController` — when an order's status transitions to `cancelled`, `reverseCancelledOrder(order)` is called automatically. It reverses any `COIN_REDEEM` entry (creates `COIN_REVERSE`), reverses any `WALLET_DEBIT` entry (creates `WALLET_REVERSE`), cancels pending `COIN_EARN`, and restores inventory per the order's item snapshot SKUs.
+
+`AdminReturnController` — when advancing a return from `received` → `resolved`, `processReturnRefund(ret)` is called. It reverses `COIN_REDEEM` → `COIN_REVERSE`, reverses `WALLET_DEBIT` → `WALLET_REVERSE`, cancels pending `COIN_EARN`, and credits `order.total` to the customer's wallet as `WALLET_CREDIT`. Sets `ret.refundAmount` and `ret.coinsRefunded` for display in both admin and B2C.
+
+`Return` entity has two extra columns added in recent migrations: `expected_return_by` (V44) and `coins_refunded` (V45).
+
+`PublicWalletController` — `GET /public/wallet/me?userId={id}` returns `{ balance, coinBalance, coinWorth, expiringCoins, expiringDate, ledger[] }`.
+
 ### Database Migrations
 
 Flyway migrations live in `src/main/resources/db/migration/`. The schema uses `ddl-auto: validate` — Hibernate never modifies the schema; all changes go through versioned SQL migration files (`V{n}__description.sql`).
 
 The test profile (`application-test.yml`) uses H2 in-memory with Flyway disabled and `ddl-auto: create-drop`.
+
+**Idempotent migrations**: when a migration has been applied manually to the DB before the backend restarts, use `CREATE TABLE IF NOT EXISTS` and wrap seed inserts in a `DO $$ BEGIN IF (SELECT COUNT(*) FROM table) = 0 THEN INSERT ...; END IF; END $$;` block. This prevents Flyway from failing on an already-existing table. Latest migration: `V46__testimonials.sql`.
 
 ### Security
 
