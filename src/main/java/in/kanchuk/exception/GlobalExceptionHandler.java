@@ -45,8 +45,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
+        if (isClientAbort(ex)) {
+            log.debug("Client disconnected: {}", ex.getMessage());
+            return null;
+        }
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Internal server error"));
+    }
+
+    private boolean isClientAbort(Exception ex) {
+        if (ex.getClass().getName().contains("ClientAbortException")) return true;
+        Throwable cause = ex.getCause();
+        if (cause instanceof java.io.IOException ioe && ioe.getMessage() != null) {
+            String msg = ioe.getMessage();
+            return msg.contains("Broken pipe") || msg.contains("Connection reset");
+        }
+        return false;
     }
 }
