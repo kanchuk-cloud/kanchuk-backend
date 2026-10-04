@@ -7,6 +7,7 @@ import in.kanchuk.entity.OrderItem;
 import in.kanchuk.entity.Return;
 import in.kanchuk.entity.User;
 import in.kanchuk.entity.InventoryLevel;
+import in.kanchuk.repository.CouponRepository;
 import in.kanchuk.repository.InventoryLevelRepository;
 import in.kanchuk.repository.OrderItemRepository;
 import in.kanchuk.repository.OrderRepository;
@@ -37,6 +38,7 @@ public class PublicOrderController {
     private final ReturnRepository returnRepo;
     private final InventoryLevelRepository inventoryRepo;
     private final PincodeRepository pincodeRepo;
+    private final CouponRepository couponRepo;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
 
@@ -110,6 +112,12 @@ public class PublicOrderController {
             } catch (Exception e) {
                 im.put("productSnapshot", Map.of());
             }
+            im.put("taxableValue", item.getTaxableValue());
+            im.put("gstRate",      item.getGstRate());
+            im.put("cgst",         item.getCgst());
+            im.put("sgst",         item.getSgst());
+            im.put("igst",         item.getIgst());
+            im.put("interState",   item.isInterState());
             return im;
         }).toList());
         // Return info for status display on list page
@@ -245,6 +253,15 @@ public class PublicOrderController {
         order.setTotalIgst(sumIgst);
         order.setTotalTax(sumCgst.add(sumSgst).add(sumIgst));
         order = orderRepo.save(order);
+
+        // Increment coupon usage count if a coupon was applied
+        String couponCode = body.getOrDefault("couponCode", "").toString().trim();
+        if (!couponCode.isBlank()) {
+            couponRepo.findByCodeIgnoreCase(couponCode).ifPresent(c -> {
+                c.setUsageCount(c.getUsageCount() + 1);
+                couponRepo.save(c);
+            });
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", order.getId());
