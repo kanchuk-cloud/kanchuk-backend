@@ -4,8 +4,10 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.sql.Types;
 import java.time.OffsetDateTime;
 
 @Getter
@@ -33,6 +35,7 @@ public class Pincode {
     @Column(name = "is_serviceable", nullable = false)
     private boolean isServiceable = true;
 
+    @JdbcTypeCode(Types.CHAR)
     @Column(name = "state_code", columnDefinition = "char(2)")
     private String stateCode;
 

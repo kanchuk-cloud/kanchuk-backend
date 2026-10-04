@@ -3,6 +3,9 @@ package in.kanchuk.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+
+import java.sql.Types;
 
 @Getter
 @Setter
@@ -28,6 +31,7 @@ public class StockLocation extends SoftDeleteEntity {
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
+    @JdbcTypeCode(Types.CHAR)
     @Column(name = "state_code", columnDefinition = "char(2)")
     private String stateCode;
 }
