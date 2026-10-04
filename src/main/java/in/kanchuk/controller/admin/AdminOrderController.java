@@ -359,12 +359,26 @@ public class AdminOrderController extends GenericAdminService {
         }
         m.put("coinDiscount", coinDiscount);
 
+        // Tax summary
+        m.put("subtotalTaxable", o.getSubtotalTaxable());
+        m.put("totalCgst",       o.getTotalCgst());
+        m.put("totalSgst",       o.getTotalSgst());
+        m.put("totalIgst",       o.getTotalIgst());
+        m.put("totalTax",        o.getTotalTax());
+
         // Items
         m.put("items", itemRepo.findByOrderId(id).stream().map(item -> {
             Map<String, Object> im = new LinkedHashMap<>();
             im.put("id", item.getId());
             im.put("price", item.getPrice());
             im.put("quantity", item.getQuantity());
+            im.put("taxableValue",  item.getTaxableValue());
+            im.put("gstRate",       item.getGstRate());
+            im.put("taxAmount",     item.getTaxAmount());
+            im.put("cgst",          item.getCgst());
+            im.put("sgst",          item.getSgst());
+            im.put("igst",          item.getIgst());
+            im.put("isInterState",  item.isInterState());
             try {
                 im.put("productSnapshot", objectMapper.readValue(
                         item.getProductSnapshot(), new TypeReference<Map<String, Object>>() {}));

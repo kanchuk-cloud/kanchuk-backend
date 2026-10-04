@@ -81,6 +81,21 @@ public class Order extends BaseEntity {
     @Column(name = "payment_status", length = 30)
     private String paymentStatus = "pending";
 
+    @Column(name = "subtotal_taxable", precision = 12, scale = 2)
+    private BigDecimal subtotalTaxable;
+
+    @Column(name = "total_cgst", precision = 12, scale = 2)
+    private BigDecimal totalCgst;
+
+    @Column(name = "total_sgst", precision = 12, scale = 2)
+    private BigDecimal totalSgst;
+
+    @Column(name = "total_igst", precision = 12, scale = 2)
+    private BigDecimal totalIgst;
+
+    @Column(name = "total_tax", precision = 12, scale = 2)
+    private BigDecimal totalTax;
+
     @JsonProperty("addressSnapshot")
     public Map<String, String> getAddressSnapshot() {
         if (deliveryAddressSnapshot == null || deliveryAddressSnapshot.isBlank()) return Map.of();

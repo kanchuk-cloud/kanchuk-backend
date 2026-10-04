@@ -10,8 +10,10 @@ import in.kanchuk.entity.InventoryLevel;
 import in.kanchuk.repository.InventoryLevelRepository;
 import in.kanchuk.repository.OrderItemRepository;
 import in.kanchuk.repository.OrderRepository;
+import in.kanchuk.repository.PincodeRepository;
 import in.kanchuk.repository.ReturnRepository;
 import in.kanchuk.repository.UserRepository;
+import in.kanchuk.util.GstCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +36,7 @@ public class PublicOrderController {
     private final UserRepository userRepo;
     private final ReturnRepository returnRepo;
     private final InventoryLevelRepository inventoryRepo;
+    private final PincodeRepository pincodeRepo;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
 
@@ -91,6 +94,11 @@ public class PublicOrderController {
         m.put("paymentStatus", o.getPaymentStatus());
         m.put("placedAt", o.getPlacedAt());
         m.put("addressSnapshot", o.getAddressSnapshot());
+        m.put("subtotalTaxable", o.getSubtotalTaxable());
+        m.put("totalCgst",       o.getTotalCgst());
+        m.put("totalSgst",       o.getTotalSgst());
+        m.put("totalIgst",       o.getTotalIgst());
+        m.put("totalTax",        o.getTotalTax());
         m.put("items", itemRepo.findByOrderId(o.getId()).stream().map(item -> {
             Map<String, Object> im = new LinkedHashMap<>();
             im.put("id", item.getId());
@@ -156,6 +164,18 @@ public class PublicOrderController {
 
         order = orderRepo.save(order);
 
+        // Resolve delivery pincode state code for GST intra/inter-state determination
+        String deliveryPinStr = address.getOrDefault("pincode", "").toString().trim();
+        final String deliveryStateCode = pincodeRepo.findById(deliveryPinStr)
+                .map(p -> p.getStateCode())
+                .orElse(null);
+
+        // Accumulators for order-level GST summary
+        BigDecimal sumTaxable = BigDecimal.ZERO;
+        BigDecimal sumCgst    = BigDecimal.ZERO;
+        BigDecimal sumSgst    = BigDecimal.ZERO;
+        BigDecimal sumIgst    = BigDecimal.ZERO;
+
         // Order items + inventory deduction
         if (body.containsKey("items") && body.get("items") instanceof List<?> rawItems) {
             final Order saved = order;
@@ -165,15 +185,44 @@ public class PublicOrderController {
                     Map<String, Object> item = (Map<String, Object>) rawMap;
                     OrderItem oi = new OrderItem();
                     oi.setOrder(saved);
-                    oi.setPrice(new BigDecimal(item.getOrDefault("price", "0").toString()));
+                    BigDecimal unitPrice = new BigDecimal(item.getOrDefault("price", "0").toString());
+                    oi.setPrice(unitPrice);
                     int qty = Integer.parseInt(item.getOrDefault("quantity", "1").toString());
                     oi.setQuantity(qty);
                     try { oi.setProductSnapshot(objectMapper.writeValueAsString(item)); }
                     catch (Exception ignored) {}
+
+                    // GST calculation
+                    String sku = item.getOrDefault("sku", "").toString();
+                    String locationStateCode = null;
+                    if (!sku.isBlank()) {
+                        List<InventoryLevel> levels = inventoryRepo.findByVariantSku(sku);
+                        if (!levels.isEmpty()) {
+                            try { locationStateCode = levels.get(0).getLocation().getStateCode(); }
+                            catch (Exception ignored) {}
+                        }
+                    }
+                    boolean interState = deliveryStateCode != null
+                            && locationStateCode != null
+                            && !deliveryStateCode.equalsIgnoreCase(locationStateCode);
+                    GstCalculator.TaxBreakdown tax = GstCalculator.calculate(unitPrice, interState);
+                    oi.setTaxableValue(tax.taxableValue());
+                    oi.setGstRate(tax.gstRate());
+                    oi.setTaxAmount(tax.taxAmount());
+                    oi.setCgst(tax.cgst());
+                    oi.setSgst(tax.sgst());
+                    oi.setIgst(tax.igst());
+                    oi.setInterState(interState);
+
+                    BigDecimal qtyBd = BigDecimal.valueOf(qty);
+                    sumTaxable = sumTaxable.add(tax.taxableValue().multiply(qtyBd));
+                    sumCgst    = sumCgst.add(tax.cgst().multiply(qtyBd));
+                    sumSgst    = sumSgst.add(tax.sgst().multiply(qtyBd));
+                    sumIgst    = sumIgst.add(tax.igst().multiply(qtyBd));
+
                     itemRepo.save(oi);
 
                     // Deduct from inventory: pick the location with highest on-hand first
-                    String sku = item.getOrDefault("sku", "").toString();
                     if (!sku.isBlank()) {
                         int remaining = qty;
                         List<InventoryLevel> levels = inventoryRepo.findByVariantSku(sku);
@@ -188,6 +237,14 @@ public class PublicOrderController {
                 }
             }
         }
+
+        // Persist GST summary on the order
+        order.setSubtotalTaxable(sumTaxable);
+        order.setTotalCgst(sumCgst);
+        order.setTotalSgst(sumSgst);
+        order.setTotalIgst(sumIgst);
+        order.setTotalTax(sumCgst.add(sumSgst).add(sumIgst));
+        order = orderRepo.save(order);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", order.getId());

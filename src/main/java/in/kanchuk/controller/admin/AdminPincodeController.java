@@ -71,6 +71,10 @@ public class AdminPincodeController extends GenericAdminService {
         if (body.get("isServiceable") != null) {
             p.setServiceable(Boolean.parseBoolean(body.get("isServiceable").toString()));
         }
+        if (body.get("stateCode") != null) {
+            String sc = body.get("stateCode").toString().trim().toUpperCase();
+            p.setStateCode(sc.isBlank() ? null : sc.substring(0, Math.min(2, sc.length())));
+        }
         resolveZone(p, body);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(repo.save(p)));
     }
@@ -91,6 +95,10 @@ public class AdminPincodeController extends GenericAdminService {
         }
         if (fields.containsKey("isServiceable")) {
             e.setServiceable(Boolean.parseBoolean(fields.get("isServiceable").toString()));
+        }
+        if (fields.containsKey("stateCode") && fields.get("stateCode") != null) {
+            String sc = fields.get("stateCode").toString().trim().toUpperCase();
+            e.setStateCode(sc.isBlank() ? null : sc.substring(0, Math.min(2, sc.length())));
         }
         resolveZone(e, fields);
         return ResponseEntity.ok(ApiResponse.ok(repo.save(e)));

@@ -28,4 +28,25 @@ public class OrderItem extends BaseEntity {
 
     @Column(name = "product_snapshot", columnDefinition = "TEXT")
     private String productSnapshot;
+
+    @Column(name = "taxable_value", precision = 12, scale = 2)
+    private java.math.BigDecimal taxableValue;
+
+    @Column(name = "gst_rate", precision = 5, scale = 4)
+    private java.math.BigDecimal gstRate;
+
+    @Column(name = "tax_amount", precision = 12, scale = 2)
+    private java.math.BigDecimal taxAmount;
+
+    @Column(name = "cgst", precision = 12, scale = 2)
+    private java.math.BigDecimal cgst;
+
+    @Column(name = "sgst", precision = 12, scale = 2)
+    private java.math.BigDecimal sgst;
+
+    @Column(name = "igst", precision = 12, scale = 2)
+    private java.math.BigDecimal igst;
+
+    @Column(name = "is_inter_state", nullable = false)
+    private boolean isInterState = false;
 }

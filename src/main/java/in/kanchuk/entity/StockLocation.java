@@ -27,4 +27,7 @@ public class StockLocation extends SoftDeleteEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(name = "state_code", length = 2)
+    private String stateCode;
 }
