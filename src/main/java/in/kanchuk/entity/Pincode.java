@@ -33,7 +33,7 @@ public class Pincode {
     @Column(name = "is_serviceable", nullable = false)
     private boolean isServiceable = true;
 
-    @Column(name = "state_code", length = 2)
+    @Column(name = "state_code", columnDefinition = "char(2)")
     private String stateCode;
 
     @ManyToOne(fetch = FetchType.EAGER)
