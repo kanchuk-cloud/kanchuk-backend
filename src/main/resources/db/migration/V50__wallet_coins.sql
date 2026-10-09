@@ -1,5 +1,5 @@
 -- Singleton config row for loyalty/wallet rules
-CREATE TABLE loyalty_settings (
+CREATE TABLE IF NOT EXISTS loyalty_settings (
     id                    BIGSERIAL PRIMARY KEY,
     coins_earn_pct        NUMERIC(5,2)  NOT NULL DEFAULT 2.00,
     coins_redeem_max_pct  NUMERIC(5,2)  NOT NULL DEFAULT 10.00,
@@ -12,10 +12,10 @@ CREATE TABLE loyalty_settings (
     updated_at            TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO loyalty_settings (id) VALUES (1);
+INSERT INTO loyalty_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
 -- Full audit ledger for every wallet/coin credit or debit
-CREATE TABLE wallet_ledger (
+CREATE TABLE IF NOT EXISTS wallet_ledger (
     id                UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id           UUID          NOT NULL REFERENCES users(id),
     order_id          UUID          REFERENCES orders(id),
@@ -30,6 +30,6 @@ CREATE TABLE wallet_ledger (
     created_at        TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX wallet_ledger_user_idx    ON wallet_ledger(user_id);
-CREATE INDEX wallet_ledger_order_idx   ON wallet_ledger(order_id);
-CREATE INDEX wallet_ledger_expires_idx ON wallet_ledger(expires_at) WHERE type = 'COIN_EARN';
+CREATE INDEX IF NOT EXISTS wallet_ledger_user_idx    ON wallet_ledger(user_id);
+CREATE INDEX IF NOT EXISTS wallet_ledger_order_idx   ON wallet_ledger(order_id);
+CREATE INDEX IF NOT EXISTS wallet_ledger_expires_idx ON wallet_ledger(expires_at) WHERE type = 'COIN_EARN';

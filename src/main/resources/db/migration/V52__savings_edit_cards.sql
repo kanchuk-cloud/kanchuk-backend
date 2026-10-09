@@ -1,4 +1,4 @@
-CREATE TABLE savings_edit_cards (
+CREATE TABLE IF NOT EXISTS savings_edit_cards (
     id            UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
     category_slug VARCHAR(100)  NOT NULL,
     image_url     VARCHAR(500),
