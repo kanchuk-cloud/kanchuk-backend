@@ -5,10 +5,12 @@ import in.kanchuk.entity.GoodsReceipt;
 import in.kanchuk.entity.PurchaseOrder;
 import in.kanchuk.entity.PurchaseOrderItem;
 import in.kanchuk.entity.PurchaseOrderPayment;
+import in.kanchuk.entity.VendorPayment;
 import in.kanchuk.repository.GoodsReceiptRepository;
 import in.kanchuk.repository.PurchaseOrderItemRepository;
 import in.kanchuk.repository.PurchaseOrderPaymentRepository;
 import in.kanchuk.repository.PurchaseOrderRepository;
+import in.kanchuk.repository.VendorPaymentRepository;
 import in.kanchuk.service.GenericAdminService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class VendorPurchaseOrderController extends GenericAdminService {
     private final PurchaseOrderItemRepository itemRepo;
     private final GoodsReceiptRepository grnRepo;
     private final PurchaseOrderPaymentRepository paymentRepo;
+    private final VendorPaymentRepository vendorPaymentRepo;
 
     private UUID currentSellerId(Authentication auth) {
         return UUID.fromString((String) auth.getCredentials());
@@ -91,5 +94,16 @@ public class VendorPurchaseOrderController extends GenericAdminService {
             throw new EntityNotFoundException("PurchaseOrder not found: " + id);
         }
         return ResponseEntity.ok(ApiResponse.ok(paymentRepo.findByPurchaseOrderId(id)));
+    }
+
+    @GetMapping("/{id}/vendor-payments")
+    public ResponseEntity<ApiResponse<List<VendorPayment>>> listVendorPayments(
+            @PathVariable UUID id, Authentication auth) {
+        UUID sellerId = currentSellerId(auth);
+        PurchaseOrder po = findOrThrow(poRepo, id, "PurchaseOrder");
+        if (!po.getSeller().getId().equals(sellerId)) {
+            throw new EntityNotFoundException("PurchaseOrder not found: " + id);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(vendorPaymentRepo.findByPurchaseOrderIdAndDeletedAtIsNull(id)));
     }
 }

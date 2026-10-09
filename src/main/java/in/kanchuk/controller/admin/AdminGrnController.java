@@ -39,7 +39,9 @@ public class AdminGrnController extends GenericAdminService {
 
     @GetMapping("/{grnId}")
     public ResponseEntity<ApiResponse<GoodsReceipt>> get(@PathVariable UUID grnId) {
-        return ResponseEntity.ok(ApiResponse.ok(findOrThrow(grnRepo, grnId, "GoodsReceipt")));
+        GoodsReceipt grn = grnRepo.findByIdWithPo(grnId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("GoodsReceipt not found: " + grnId));
+        return ResponseEntity.ok(ApiResponse.ok(grn));
     }
 
     @GetMapping("/{grnId}/items")

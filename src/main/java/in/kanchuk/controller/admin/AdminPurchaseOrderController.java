@@ -61,7 +61,9 @@ public class AdminPurchaseOrderController extends GenericAdminService {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PurchaseOrder>> get(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.ok(findOrThrow(repo, id, "PurchaseOrder")));
+        PurchaseOrder po = repo.findByIdWithSeller(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("PurchaseOrder not found: " + id));
+        return ResponseEntity.ok(ApiResponse.ok(po));
     }
 
     @PostMapping
