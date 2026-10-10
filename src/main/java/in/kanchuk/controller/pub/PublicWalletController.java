@@ -55,6 +55,8 @@ public class PublicWalletController extends GenericAdminService {
         result.put("expiringCoins", 0);
         result.put("expiringDate", thirtyDaysOut);
         result.put("ledger", ledgerRepo.findRecentByUserId(userId, PageRequest.of(0, 10)));
+        result.put("bookingCount", u.getBookingCount());
+        result.put("isPreferredCustomer", u.getBookingCount() > 5);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 

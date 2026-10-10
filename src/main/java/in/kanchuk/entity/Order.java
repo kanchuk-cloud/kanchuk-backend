@@ -37,6 +37,9 @@ public class Order extends BaseEntity {
     @Column(name = "delivery_charge", nullable = false, precision = 10, scale = 2)
     private BigDecimal deliveryCharge = BigDecimal.ZERO;
 
+    @Column(name = "platform_fee", nullable = false, precision = 10, scale = 2)
+    private BigDecimal platformFee = BigDecimal.ZERO;
+
     @Column(name = "total", nullable = false, precision = 10, scale = 2)
     private BigDecimal total;
 

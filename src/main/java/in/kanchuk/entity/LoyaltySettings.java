@@ -32,6 +32,12 @@ public class LoyaltySettings {
     @Column(name = "wallet_expiry_days", nullable = false)
     private int walletExpiryDays = 730;
 
+    @Column(name = "platform_fee", nullable = false, precision = 10, scale = 2)
+    private BigDecimal platformFee = new BigDecimal("23.00");
+
+    @Column(name = "platform_fee_enabled", nullable = false)
+    private boolean platformFeeEnabled = true;
+
     @Column(name = "min_order_for_coins", nullable = false, precision = 10, scale = 2)
     private BigDecimal minOrderForCoins = BigDecimal.ZERO;
 

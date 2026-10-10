@@ -156,16 +156,25 @@ public class AdminOrderController extends GenericAdminService {
                 order.setStatus("delivered");
                 smsType = OrderNotificationType.ORDER_DELIVERED;
 
-                // Activate any pending coin earns for this order
+                // Check whether coins were used on this order
+                boolean usedCoins = !walletLedgerRepo.findByOrder_IdAndType(id, "COIN_REDEEM").isEmpty();
+                boolean allowEarn = !usedCoins || loyaltySettingsRepo.findById(1L)
+                        .map(LoyaltySettings::isCoinsOnCoinPayment).orElse(true);
+
                 walletLedgerRepo.findByOrder_IdAndType(id, "COIN_EARN").forEach(earn -> {
-                    if (earn.isPending() && earn.getCoinAmount() != null && earn.getCoinAmount() > 0) {
+                    if (!earn.isPending()) return;
+                    if (allowEarn && earn.getCoinAmount() != null && earn.getCoinAmount() > 0) {
                         User u = earn.getUser();
                         u.setLoyaltyPoints(u.getLoyaltyPoints() + earn.getCoinAmount());
                         earn.setCoinBalanceAfter(u.getLoyaltyPoints());
                         earn.setPending(false);
                         userRepo.save(u);
-                        walletLedgerRepo.save(earn);
+                    } else {
+                        earn.setCoinAmount(0);
+                        earn.setPending(false);
+                        earn.setNote("Cancelled: coins not earned on coin-paid orders");
                     }
+                    walletLedgerRepo.save(earn);
                 });
             }
 
@@ -297,6 +306,7 @@ public class AdminOrderController extends GenericAdminService {
         m.put("orderNumber", o.getOrderNumber());
         m.put("status", o.getStatus());
         m.put("total", o.getTotal());
+        m.put("platformFee", o.getPlatformFee());
         m.put("paymentMethod", o.getPaymentMethod());
         m.put("paymentStatus", o.getPaymentStatus());
         m.put("addressSnapshot", o.getAddressSnapshot());

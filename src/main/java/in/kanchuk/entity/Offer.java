@@ -48,4 +48,7 @@ public class Offer extends SoftDeleteEntity {
 
     @Column(name = "og_image_url")
     private String ogImageUrl;
+
+    @Column(name = "usage_limit")
+    private Integer usageLimit;
 }

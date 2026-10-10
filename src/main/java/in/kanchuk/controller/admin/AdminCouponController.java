@@ -76,6 +76,10 @@ public class AdminCouponController extends GenericAdminService {
             Object md = f.get("maxDiscount");
             e.setMaxDiscount(md != null && !md.toString().isBlank() ? new BigDecimal(md.toString()) : null);
         }
+        if (f.containsKey("validFrom")) {
+            Object vf = f.get("validFrom");
+            e.setValidFrom(vf != null && !vf.toString().isBlank() ? LocalDate.parse(vf.toString()) : null);
+        }
         if (f.containsKey("expiryDate"))
             e.setExpiryDate(LocalDate.parse(f.get("expiryDate").toString()));
         if (f.containsKey("usageLimit")) {
@@ -84,5 +88,7 @@ public class AdminCouponController extends GenericAdminService {
         }
         if (f.containsKey("isActive"))
             e.setActive(Boolean.parseBoolean(f.get("isActive").toString()));
+        if (f.containsKey("firstTimeOnly"))
+            e.setFirstTimeOnly(Boolean.parseBoolean(f.get("firstTimeOnly").toString()));
     }
 }

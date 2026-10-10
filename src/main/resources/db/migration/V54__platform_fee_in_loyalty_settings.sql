@@ -1,0 +1,2 @@
+ALTER TABLE loyalty_settings
+  ADD COLUMN IF NOT EXISTS platform_fee NUMERIC(10,2) NOT NULL DEFAULT 23;

@@ -34,6 +34,9 @@ public class Coupon extends BaseEntity {
     @Column(name = "max_discount", precision = 10, scale = 2)
     private BigDecimal maxDiscount;
 
+    @Column(name = "valid_from")
+    private LocalDate validFrom;
+
     @Column(name = "expiry_date", nullable = false)
     private LocalDate expiryDate;
 
@@ -45,4 +48,7 @@ public class Coupon extends BaseEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(name = "first_time_only", nullable = false)
+    private boolean firstTimeOnly = false;
 }

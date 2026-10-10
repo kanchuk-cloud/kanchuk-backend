@@ -39,4 +39,7 @@ public class User extends SoftDeleteEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
+
+    @Column(name = "booking_count", nullable = false)
+    private int bookingCount = 0;
 }

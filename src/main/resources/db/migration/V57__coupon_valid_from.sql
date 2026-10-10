@@ -1,0 +1,2 @@
+ALTER TABLE coupons
+  ADD COLUMN IF NOT EXISTS valid_from DATE;

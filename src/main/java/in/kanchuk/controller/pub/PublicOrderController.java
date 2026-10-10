@@ -7,13 +7,17 @@ import in.kanchuk.entity.OrderItem;
 import in.kanchuk.entity.Return;
 import in.kanchuk.entity.User;
 import in.kanchuk.entity.InventoryLevel;
+import in.kanchuk.entity.WalletLedger;
+import in.kanchuk.entity.LoyaltySettings;
 import in.kanchuk.repository.CouponRepository;
 import in.kanchuk.repository.InventoryLevelRepository;
+import in.kanchuk.repository.LoyaltySettingsRepository;
 import in.kanchuk.repository.OrderItemRepository;
 import in.kanchuk.repository.OrderRepository;
 import in.kanchuk.repository.PincodeRepository;
 import in.kanchuk.repository.ReturnRepository;
 import in.kanchuk.repository.UserRepository;
+import in.kanchuk.repository.WalletLedgerRepository;
 import in.kanchuk.util.GstCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -39,6 +43,8 @@ public class PublicOrderController {
     private final InventoryLevelRepository inventoryRepo;
     private final PincodeRepository pincodeRepo;
     private final CouponRepository couponRepo;
+    private final WalletLedgerRepository walletLedgerRepo;
+    private final LoyaltySettingsRepository loyaltySettingsRepo;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
 
@@ -92,6 +98,7 @@ public class PublicOrderController {
         m.put("subtotal", o.getSubtotal());
         m.put("discountAmount", o.getDiscountAmount());
         m.put("deliveryCharge", o.getDeliveryCharge());
+        m.put("platformFee", o.getPlatformFee());
         m.put("paymentMethod", o.getPaymentMethod());
         m.put("paymentStatus", o.getPaymentStatus());
         m.put("placedAt", o.getPlacedAt());
@@ -101,6 +108,29 @@ public class PublicOrderController {
         m.put("totalSgst",       o.getTotalSgst());
         m.put("totalIgst",       o.getTotalIgst());
         m.put("totalTax",        o.getTotalTax());
+        List<WalletLedger> redeems = walletLedgerRepo.findByOrder_IdAndType(o.getId(), "COIN_REDEEM");
+        BigDecimal coinDiscount;
+        if (redeems.isEmpty()) {
+            coinDiscount = BigDecimal.ZERO;
+        } else {
+            boolean hasRupeeAmount = redeems.stream()
+                    .anyMatch(wl -> wl.getAmount() != null && wl.getAmount().compareTo(BigDecimal.ZERO) != 0);
+            if (hasRupeeAmount) {
+                coinDiscount = redeems.stream()
+                        .map(wl -> wl.getAmount() != null ? wl.getAmount().abs() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            } else {
+                BigDecimal coinsPerRupee = loyaltySettingsRepo.findById(1L)
+                        .map(LoyaltySettings::getCoinsPerRupee)
+                        .orElse(BigDecimal.ONE);
+                coinDiscount = redeems.stream()
+                        .filter(wl -> wl.getCoinAmount() != null && wl.getCoinAmount() != 0)
+                        .map(wl -> BigDecimal.valueOf(Math.abs(wl.getCoinAmount()))
+                                .divide(coinsPerRupee, 2, java.math.RoundingMode.DOWN))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            }
+        }
+        m.put("coinDiscount", coinDiscount);
         m.put("items", itemRepo.findByOrderId(o.getId()).stream().map(item -> {
             Map<String, Object> im = new LinkedHashMap<>();
             im.put("id", item.getId());
@@ -154,6 +184,7 @@ public class PublicOrderController {
         order.setSubtotal(new BigDecimal(body.getOrDefault("subtotal", "0").toString()));
         order.setDiscountAmount(new BigDecimal(body.getOrDefault("discountAmount", "0").toString()));
         order.setDeliveryCharge(new BigDecimal(body.getOrDefault("deliveryCharge", "0").toString()));
+        order.setPlatformFee(new BigDecimal(body.getOrDefault("platformFee", "0").toString()));
         order.setTotal(new BigDecimal(body.getOrDefault("total", "0").toString()));
         order.setPaymentMethod(body.getOrDefault("paymentMethod", "").toString());
         order.setPaymentStatus("pending");
@@ -254,13 +285,22 @@ public class PublicOrderController {
         order.setTotalTax(sumCgst.add(sumSgst).add(sumIgst));
         order = orderRepo.save(order);
 
-        // Increment coupon usage count if a coupon was applied
+        // Atomically increment coupon usage — guards against concurrent redemptions
         String couponCode = body.getOrDefault("couponCode", "").toString().trim();
         if (!couponCode.isBlank()) {
-            couponRepo.findByCodeIgnoreCase(couponCode).ifPresent(c -> {
-                c.setUsageCount(c.getUsageCount() + 1);
-                couponRepo.save(c);
-            });
+            var couponOpt = couponRepo.findByCodeIgnoreCase(couponCode);
+            if (couponOpt.isPresent()) {
+                int updated = couponRepo.incrementUsageCountIfAllowed(couponOpt.get().getId());
+                if (updated == 0) {
+                    return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("Coupon usage limit reached. Please try another coupon."));
+                }
+            }
+        }
+
+        if (user != null) {
+            user.setBookingCount(user.getBookingCount() + 1);
+            userRepo.save(user);
         }
 
         Map<String, Object> result = new LinkedHashMap<>();

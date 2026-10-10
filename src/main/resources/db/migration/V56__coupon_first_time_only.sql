@@ -1,0 +1,2 @@
+ALTER TABLE coupons
+  ADD COLUMN IF NOT EXISTS first_time_only BOOLEAN NOT NULL DEFAULT false;

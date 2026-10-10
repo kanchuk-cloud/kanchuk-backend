@@ -41,11 +41,14 @@ public class PublicCouponController extends GenericAdminService {
         if (!c.isActive())
             return ResponseEntity.badRequest().body(ApiResponse.error("Coupon is inactive"));
 
+        if (c.getValidFrom() != null && LocalDate.now().isBefore(c.getValidFrom()))
+            return ResponseEntity.badRequest().body(ApiResponse.error("This coupon is not valid yet. Valid from " + c.getValidFrom() + "."));
+
         if (c.getExpiryDate().isBefore(LocalDate.now()))
             return ResponseEntity.badRequest().body(ApiResponse.error("Coupon has expired"));
 
         if (c.getUsageLimit() != null && c.getUsageCount() >= c.getUsageLimit())
-            return ResponseEntity.badRequest().body(ApiResponse.error("Coupon usage limit reached"));
+            return ResponseEntity.badRequest().body(ApiResponse.error("This coupon has expired (usage limit reached)"));
 
         if (orderSubtotal.compareTo(c.getMinOrder()) < 0)
             return ResponseEntity.badRequest().body(
