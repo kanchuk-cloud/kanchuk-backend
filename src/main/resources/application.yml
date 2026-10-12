@@ -45,7 +45,7 @@ jwt:
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}   # 24 hours
 
 cors:
-  allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:3001}
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:3001,capacitor://localhost,http://192.168.1.4:3000}
 
 storage:
   type: local                              # switch to "s3" when ready
