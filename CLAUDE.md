@@ -116,6 +116,8 @@ Two entities use composite keys with `@EmbeddedId`:
 
 `Testimonial` extends `BaseEntity` (no soft-delete — hard-delete via `repo.deleteById`). Fields: `customerName`, `city`, `quote`, `rating` (SMALLINT 1–5), `productName`, `avatarUrl`, `isVerified`, `isActive`, `displayOrder`. Admin CRUD at `/api/v1/admin/testimonials`; public read at `/api/v1/public/testimonials` (active only, ordered by `displayOrder`, max 20).
 
+`SavingsEditCard` is a **non-standard entity** — it does not extend `BaseEntity` or `SoftDeleteEntity`; it declares its own `id`/`createdAt`/`updatedAt` fields directly. Fields: `categorySlug`, `imageUrl`, `labelOverride`, `minDiscount`, `sortOrder`, `isActive`. Admin CRUD at `/api/v1/admin/savings-edit`; public read at `/api/v1/public/savings-edit` (active only, ordered by `sortOrder`).
+
 ### Product Catalog Model
 
 The catalog follows a Medusa-style hierarchy:
@@ -179,7 +181,11 @@ Spring Data JPA property-path traversal is used for cross-entity filters (e.g. `
 
 ### Coupon System
 
-`Coupon` entity stores code, type (`percent`/`flat`), value, min order amount, max discount (for percent coupons), usage limit, and active flag. Admin CRUD at `/api/v1/admin/coupons`. Public endpoints: `GET /api/v1/public/coupons` (active coupons list) and `POST /api/v1/public/coupons/validate` (returns discount amount for a given cart total). `PublicOrderController.placeOrder()` increments `usageCount` when a coupon code is present in the order body.
+`Coupon` entity stores code, type (`PERCENTAGE`/`FLAT`), discount value, `minOrder`, `maxDiscount` (percent cap), `usageLimit`, `usageCount`, `expiryDate`, `validFrom` (optional start date), `firstTimeOnly` flag (restricts to users with `bookingCount == 0`), and `isActive`. Admin CRUD at `/api/v1/admin/coupons`. Public endpoints: `GET /api/v1/public/coupons` (active coupons list) and `POST /api/v1/public/coupons/validate` (returns discount amount for a given cart total). `PublicOrderController.placeOrder()` increments `usageCount` when a coupon code is present in the order body.
+
+`User.bookingCount` (added V59) tracks completed orders per customer — used for `firstTimeOnly` coupon eligibility. Offers gained a `usageLimit` field (V58) mirroring the coupon pattern.
+
+**Platform fee** (V53–V55): `Order.platformFee` (NUMERIC 10,2) is stored per order. `LoyaltySettings` has `platformFee` (default ₹23) and `platformFeeEnabled` (boolean) — admin can toggle the fee globally.
 
 ### Database Migrations
 
@@ -187,7 +193,7 @@ Flyway migrations live in `src/main/resources/db/migration/`. The schema uses `d
 
 The test profile (`application-test.yml`) uses H2 in-memory with Flyway disabled and `ddl-auto: create-drop`.
 
-**Idempotent migrations**: when a migration has been applied manually to the DB before the backend restarts, use `CREATE TABLE IF NOT EXISTS` and wrap seed inserts in a `DO $$ BEGIN IF (SELECT COUNT(*) FROM table) = 0 THEN INSERT ...; END IF; END $$;` block. This prevents Flyway from failing on an already-existing table. Latest migration: `V52__savings_edit_cards.sql`.
+**Idempotent migrations**: when a migration has been applied manually to the DB before the backend restarts, use `CREATE TABLE IF NOT EXISTS` and wrap seed inserts in a `DO $$ BEGIN IF (SELECT COUNT(*) FROM table) = 0 THEN INSERT ...; END IF; END $$;` block. This prevents Flyway from failing on an already-existing table. Latest migration: `V59__user_booking_count.sql`.
 
 ### Security
 
