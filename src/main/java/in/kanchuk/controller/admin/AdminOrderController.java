@@ -6,6 +6,7 @@ import in.kanchuk.dto.response.ApiResponse;
 import in.kanchuk.entity.*;
 import in.kanchuk.repository.*;
 import in.kanchuk.service.GenericAdminService;
+import in.kanchuk.service.NotificationService;
 import in.kanchuk.service.SmsService;
 import in.kanchuk.sms.template.OrderNotificationType;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class AdminOrderController extends GenericAdminService {
     private final InventoryLevelRepository inventoryRepo;
     private final ObjectMapper objectMapper;
     private final SmsService smsService;
+    private final NotificationService notificationService;
     private final WalletLedgerRepository walletLedgerRepo;
     private final UserRepository userRepo;
     private final LoyaltySettingsRepository loyaltySettingsRepo;
@@ -187,6 +189,17 @@ public class AdminOrderController extends GenericAdminService {
         repo.save(order);
         if (smsType != null) {
             smsService.sendOrderNotification(orderPhone(order), order.getOrderNumber(), smsType);
+        }
+        String userId = order.getUser() != null ? order.getUser().getId().toString() : null;
+        switch (order.getStatus()) {
+            case "confirmed"        -> notificationService.sendToUser(userId, "Order Confirmed 🎉",
+                    "Your order #" + order.getOrderNumber() + " has been confirmed.");
+            case "shipped"          -> notificationService.sendToUser(userId, "Your order is on the way 🚚",
+                    "Order #" + order.getOrderNumber() + " has been shipped.");
+            case "out_for_delivery" -> notificationService.sendToUser(userId, "Out for delivery 📦",
+                    "Order #" + order.getOrderNumber() + " is out for delivery today.");
+            case "delivered"        -> notificationService.sendToUser(userId, "Delivered ✅",
+                    "Order #" + order.getOrderNumber() + " has been delivered. Enjoy!");
         }
         return ResponseEntity.ok(ApiResponse.ok(buildOrderMap(order)));
     }

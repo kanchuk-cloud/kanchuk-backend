@@ -18,6 +18,7 @@ import in.kanchuk.repository.PincodeRepository;
 import in.kanchuk.repository.ReturnRepository;
 import in.kanchuk.repository.UserRepository;
 import in.kanchuk.repository.WalletLedgerRepository;
+import in.kanchuk.service.NotificationService;
 import in.kanchuk.util.GstCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -47,6 +48,7 @@ public class PublicOrderController {
     private final LoyaltySettingsRepository loyaltySettingsRepo;
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     @GetMapping("/{orderNumber}")
     @Transactional(readOnly = true)
@@ -301,6 +303,8 @@ public class PublicOrderController {
         if (user != null) {
             user.setBookingCount(user.getBookingCount() + 1);
             userRepo.save(user);
+            notificationService.sendToUser(user.getId().toString(), "Order Placed 🎉",
+                    "Your order #" + order.getOrderNumber() + " has been placed successfully.");
         }
 
         Map<String, Object> result = new LinkedHashMap<>();

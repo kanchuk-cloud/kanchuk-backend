@@ -1,3 +1,6 @@
+# Firebase service account — never commit
+src/main/resources/firebase-service-account.json
+
 # Compiled class file
 *.class
 
